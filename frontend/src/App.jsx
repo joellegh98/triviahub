@@ -9,6 +9,11 @@ import { PlayPage } from './pages/PlayPage.jsx'
 import { QuizzesPage } from './pages/QuizzesPage.jsx'
 import { ResultsPage } from './pages/ResultsPage.jsx'
 
+/**
+ * Root application component. Sets up client-side routing and renders the shared Layout
+ * around all page routes.
+ * @returns {JSX.Element}
+ */
 function App() {
   return (
     <BrowserRouter>

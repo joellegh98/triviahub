@@ -1,5 +1,9 @@
 import { Link } from 'react-router-dom'
 
+/**
+ * Catch-all 404 page rendered for any unrecognised route.
+ * @returns {JSX.Element}
+ */
 export function NotFoundPage() {
   return (
     <section>

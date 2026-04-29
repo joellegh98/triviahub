@@ -2,6 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { questions, quizzes } from '../mockData.js'
 
+/**
+ * Quiz browser page. Lets users filter quizzes by category and search by title,
+ * then navigate to the play page for a chosen quiz.
+ * @returns {JSX.Element}
+ */
 export function QuizzesPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')

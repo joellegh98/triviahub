@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { questions, quizzes } from '../mockData.js'
 
+/**
+ * Returns a new array with the same elements in a random (Fisher-Yates) order.
+ * The original array is not mutated.
+ * @template T
+ * @param {T[]} items
+ * @returns {T[]}
+ */
 function shuffleArray(items) {
   const copy = [...items]
   for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -11,6 +18,13 @@ function shuffleArray(items) {
   return copy
 }
 
+/**
+ * Interactive quiz play page.
+ * Loads questions for the quiz identified by the `:quizId` URL param, shuffles them,
+ * runs a stopwatch, tracks attempts and hints, and navigates to the results page
+ * when the last question is answered.
+ * @returns {JSX.Element}
+ */
 export function PlayPage() {
   const { quizId } = useParams()
   const navigate = useNavigate()
@@ -63,6 +77,10 @@ export function PlayPage() {
     return () => window.clearInterval(intervalId)
   }, [noQuestionsWarning, quizQuestions.length])
 
+  /**
+   * Reveals the hint for the current question (once per question) and increments
+   * the global hints-used counter.
+   */
   const handleHintReveal = () => {
     if (!currentQuestion || revealedHintQuestionIds[currentQuestion.id]) {
       return
@@ -72,6 +90,12 @@ export function PlayPage() {
     setHintsUsed((prev) => prev + 1)
   }
 
+  /**
+   * Advances to the next question, or navigates to the results page when the last
+   * question has been answered.
+   * @param {number} nextAttempts - Updated total attempts count after current answer.
+   * @param {number} nextCorrectAnswers - Updated correct-answers count after current answer.
+   */
   const moveToNextQuestion = (nextAttempts, nextCorrectAnswers) => {
     setSelectedIndex(null)
     setIsTransitioning(false)
@@ -93,6 +117,12 @@ export function PlayPage() {
     setCurrentQuestionIndex((prevIndex) => prevIndex + 1)
   }
 
+  /**
+   * Handles a player clicking one of the answer option buttons.
+   * Colours the button green/red, updates counters, and schedules the transition
+   * to the next question after a short delay.
+   * @param {number} clickedIndex - Zero-based index of the option the player selected.
+   */
   const handleAnswerClick = (clickedIndex) => {
     if (!currentQuestion || isTransitioning) {
       return

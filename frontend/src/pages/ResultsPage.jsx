@@ -1,6 +1,13 @@
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { gameResults, quizzes } from '../mockData.js'
 
+/**
+ * Computes a 0–100 score from game stats.
+ * Accuracy contributes 80 points, time bonus up to 20 points (capped at 180 s),
+ * and each hint costs 4 points.
+ * @param {{ correctAnswers: number, totalQuestions: number, durationSec: number, hintsUsed: number }} params
+ * @returns {number} Rounded integer score in [0, 100]
+ */
 function computeScore({ correctAnswers, totalQuestions, durationSec, hintsUsed }) {
   if (!totalQuestions || totalQuestions <= 0) {
     return 0
@@ -19,6 +26,11 @@ function computeScore({ correctAnswers, totalQuestions, durationSec, hintsUsed }
   return Math.max(0, Math.min(100, Math.round(rawScore)))
 }
 
+/**
+ * Post-game results page. Reads game stats from React Router navigation state,
+ * computes the player's score, and displays it alongside a per-quiz top-10 leaderboard.
+ * @returns {JSX.Element}
+ */
 export function ResultsPage() {
   const { quizId } = useParams()
   const location = useLocation()

@@ -1,6 +1,11 @@
 import { Link } from 'react-router-dom'
 import { gameResults, questions, quizzes } from '../mockData.js'
 
+/**
+ * Landing page. Displays summary statistics (total quizzes, questions, games played)
+ * and quick-navigation buttons to the quiz browser and leaderboard.
+ * @returns {JSX.Element}
+ */
 export function HomePage() {
   const totalQuizzes = quizzes.length
   const totalQuestions = questions.length

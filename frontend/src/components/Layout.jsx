@@ -1,8 +1,19 @@
 import { NavLink, Outlet } from 'react-router-dom'
 
+/**
+ * Returns the Bootstrap nav-link class string, appending 'active' when the link
+ * matches the current route.
+ * @param {{ isActive: boolean }} props
+ * @returns {string}
+ */
 const getNavLinkClassName = ({ isActive }) =>
   `nav-link${isActive ? ' active' : ''}`
 
+/**
+ * Shared page shell: top navigation bar and a centred main content area.
+ * Child routes are rendered via React Router's <Outlet>.
+ * @returns {JSX.Element}
+ */
 export function Layout() {
   return (
     <div className="min-vh-100 d-flex flex-column">

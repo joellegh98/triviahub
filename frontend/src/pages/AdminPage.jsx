@@ -14,6 +14,12 @@ const emptyQuestionForm = {
   hint: '',
 }
 
+/**
+ * Admin CRUD page (local state only, no backend).
+ * Allows creating and deleting quizzes, and adding, editing, and deleting questions
+ * within a selected quiz.
+ * @returns {JSX.Element}
+ */
 export function AdminPage() {
   const [quizzes, setQuizzes] = useState(initialQuizzes)
   const [questions, setQuestions] = useState(initialQuestions)
@@ -34,6 +40,12 @@ export function AdminPage() {
     [questions, selectedQuizId],
   )
 
+  /**
+   * Validates the Add Quiz form fields.
+   * Checks that title is non-empty and unique (case-insensitive),
+   * and that category contains letters only.
+   * @returns {Object.<string, string>} Map of field name → error message (empty if valid).
+   */
   const validateQuizForm = () => {
     const errors = {}
     const normalizedTitle = quizForm.title.trim().toLowerCase()
@@ -59,6 +71,11 @@ export function AdminPage() {
     return errors
   }
 
+  /**
+   * Handles submission of the Add Quiz form.
+   * Validates input, creates a new quiz with a timestamp-based id, and resets the form.
+   * @param {React.FormEvent<HTMLFormElement>} event
+   */
   const handleQuizSubmit = (event) => {
     event.preventDefault()
     const errors = validateQuizForm()
@@ -83,6 +100,11 @@ export function AdminPage() {
     setQuizErrors({})
   }
 
+  /**
+   * Deletes a quiz and all its questions from local state.
+   * If the deleted quiz was selected, the selection falls back to the next available quiz.
+   * @param {string} quizIdToDelete
+   */
   const handleDeleteQuiz = (quizIdToDelete) => {
     setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizIdToDelete))
     setQuestions((prev) =>
@@ -98,6 +120,12 @@ export function AdminPage() {
     }
   }
 
+  /**
+   * Validates the Add/Edit Question form fields.
+   * Checks that a quiz is selected, question text is non-empty, all four options are
+   * non-empty, and the correct index is within [0, 3].
+   * @returns {Object.<string, string|string[]>} Map of field name → error message(s).
+   */
   const validateQuestionForm = () => {
     const errors = {}
 
@@ -127,6 +155,12 @@ export function AdminPage() {
     return errors
   }
 
+  /**
+   * Handles submission of the Add/Edit Question form.
+   * When editing, updates the matching question in state; otherwise appends a new one.
+   * Resets the form and clears the editing id on success.
+   * @param {React.FormEvent<HTMLFormElement>} event
+   */
   const handleQuestionSubmit = (event) => {
     event.preventDefault()
     const errors = validateQuestionForm()
@@ -160,6 +194,10 @@ export function AdminPage() {
     setQuestionErrors({})
   }
 
+  /**
+   * Populates the question form with an existing question's data to begin editing it.
+   * @param {{ id: string, text: string, options: string[], correctIndex: number, hint: string }} question
+   */
   const startEditingQuestion = (question) => {
     setEditingQuestionId(question.id)
     setQuestionForm({
@@ -171,6 +209,11 @@ export function AdminPage() {
     setQuestionErrors({})
   }
 
+  /**
+   * Removes a question from local state by id.
+   * If the deleted question was being edited, the form is also cleared.
+   * @param {string} questionId
+   */
   const handleDeleteQuestion = (questionId) => {
     setQuestions((prev) => prev.filter((question) => question.id !== questionId))
     if (editingQuestionId === questionId) {

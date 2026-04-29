@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react'
 import { gameResults, quizzes } from '../mockData.js'
 
+/**
+ * Global leaderboard page. Shows the top 20 game results across all quizzes,
+ * sortable by score, date, or player name.
+ * @returns {JSX.Element}
+ */
 export function LeaderboardPage() {
   const [sortBy, setSortBy] = useState('score')
 
