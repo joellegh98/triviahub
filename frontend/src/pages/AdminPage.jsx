@@ -254,7 +254,7 @@ export function AdminPage() {
 
         <div className="col-12 col-lg-7">
           <article className="card h-100 shadow-sm">
-            <div className="card-body">
+            <div className="card-body text-start">
               <h2 className="h5 mb-3">Quizzes</h2>
               {quizzes.length === 0 ? (
                 <p className="text-muted mb-0">No quizzes available.</p>
@@ -265,7 +265,7 @@ export function AdminPage() {
                       key={quiz.id}
                       className="list-group-item d-flex justify-content-between align-items-start gap-3"
                     >
-                      <div>
+                      <div className="text-start">
                         <p className="fw-semibold mb-1">{quiz.title}</p>
                         <p className="mb-0 text-muted">
                           {quiz.category} • {questions.filter((q) => q.quizId === quiz.id).length}{' '}
@@ -298,7 +298,7 @@ export function AdminPage() {
       </div>
 
       <article className="card shadow-sm mt-4">
-        <div className="card-body">
+        <div className="card-body text-start">
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
             <h2 className="h5 mb-0">Questions</h2>
             <select
@@ -450,7 +450,7 @@ export function AdminPage() {
                   {selectedQuizQuestions.map((question) => (
                     <li key={question.id} className="list-group-item">
                       <div className="d-flex flex-column flex-md-row justify-content-between gap-3">
-                        <div>
+                        <div className="text-start">
                           <p className="fw-semibold mb-1">{question.text}</p>
                           <p className="mb-1 text-muted">
                             Correct: Option {question.correctIndex + 1}
