@@ -1,13 +1,14 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
+  /* Light-purple theme (applies globally; Bootstrap will inherit many colors). */
+  --text: #4b2d66;
+  --text-h: #1f0f2e;
+  --bg: #f7f1ff;
+  --border: #eadbff;
+  --code-bg: #f1e7ff;
   --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  --accent-bg: rgba(170, 59, 255, 0.12);
+  --accent-border: rgba(170, 59, 255, 0.55);
+  --social-bg: rgba(170, 59, 255, 0.08);
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
@@ -32,17 +33,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
+    /* Keep the light-purple theme even when OS requests dark mode. */
+    --text: #4b2d66;
+    --text-h: #1f0f2e;
+    --bg: #f7f1ff;
+    --border: #eadbff;
+    --code-bg: #f1e7ff;
+    --accent: #aa3bff;
+    --accent-bg: rgba(170, 59, 255, 0.12);
+    --accent-border: rgba(170, 59, 255, 0.55);
+    --social-bg: rgba(170, 59, 255, 0.08);
     --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+      rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
   }
 
   #social .button-icon {
@@ -52,6 +54,8 @@
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--text);
 }
 
 #root {
@@ -64,6 +68,105 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+/* Make the main layout left-aligned by default (individual pages can override). */
+main.container {
+  text-align: left;
+}
+
+/* ---- Bootstrap overrides: navbar/buttons/cards/tables/alerts ---- */
+
+/* Replace the dark/black navbar styling with light-purple. */
+.navbar.bg-dark {
+  background: linear-gradient(
+    135deg,
+    rgba(247, 241, 255, 0.95),
+    rgba(234, 219, 255, 0.95)
+  ) !important;
+  border-bottom: 1px solid var(--border);
+}
+
+.navbar.bg-dark .navbar-brand,
+.navbar.bg-dark .nav-link {
+  color: var(--text-h) !important;
+}
+
+.navbar.bg-dark .nav-link:hover {
+  color: var(--accent) !important;
+}
+
+.navbar.bg-dark .nav-link.active {
+  color: var(--accent) !important;
+  background: var(--accent-bg) !important;
+  border-radius: 0.375rem;
+}
+
+/* Primary buttons should be purple (instead of Bootstrap blue). */
+.btn-primary {
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+.btn-primary:hover {
+  background-color: rgba(170, 59, 255, 0.92) !important;
+  border-color: rgba(170, 59, 255, 0.92) !important;
+}
+
+.btn-outline-secondary {
+  color: var(--text-h) !important;
+  border-color: var(--accent-border) !important;
+}
+
+.btn-outline-secondary:hover {
+  color: var(--text-h) !important;
+  background-color: var(--accent-bg) !important;
+}
+
+.btn-outline-danger {
+  color: var(--text-h) !important;
+  border-color: var(--accent-border) !important;
+}
+
+.btn-outline-danger:hover {
+  color: var(--text-h) !important;
+  background-color: var(--accent-bg) !important;
+}
+
+/* Make surfaces/cards/list items match the purple theme. */
+.card,
+.list-group-item,
+.modal-content {
+  background-color: rgba(247, 241, 255, 0.75) !important;
+  border-color: var(--border) !important;
+}
+
+/* Tables: subtle purple zebra. */
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: rgba(170, 59, 255, 0.06);
+}
+
+.table {
+  color: var(--text) !important;
+}
+
+.alert {
+  border-color: var(--border) !important;
+}
+
+.alert-warning,
+.alert-info,
+.alert-secondary {
+  background-color: rgba(170, 59, 255, 0.08) !important;
+  color: var(--text-h) !important;
+}
+
+.text-muted {
+  color: rgba(31, 15, 46, 0.65) !important;
+}
+
+.form-label {
+  color: var(--text-h) !important;
 }
 
 h1,
