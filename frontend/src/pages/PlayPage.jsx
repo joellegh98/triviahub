@@ -21,7 +21,7 @@ export function PlayPage() {
   const [hintsUsed, setHintsUsed] = useState(0)
   const [revealedHintQuestionIds, setRevealedHintQuestionIds] = useState({})
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [feedback, setFeedback] = useState('')
+  const [selectedIndex, setSelectedIndex] = useState(null)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [showQuitModal, setShowQuitModal] = useState(false)
   const [noQuestionsWarning, setNoQuestionsWarning] = useState(false)
@@ -73,7 +73,7 @@ export function PlayPage() {
   }
 
   const moveToNextQuestion = (nextAttempts, nextCorrectAnswers) => {
-    setFeedback('')
+    setSelectedIndex(null)
     setIsTransitioning(false)
 
     if (currentQuestionIndex === quizQuestions.length - 1) {
@@ -93,21 +93,19 @@ export function PlayPage() {
     setCurrentQuestionIndex((prevIndex) => prevIndex + 1)
   }
 
-  const handleAnswerClick = (selectedIndex) => {
+  const handleAnswerClick = (clickedIndex) => {
     if (!currentQuestion || isTransitioning) {
       return
     }
 
-    const isCorrect = selectedIndex === currentQuestion.correctIndex
+    const isCorrect = clickedIndex === currentQuestion.correctIndex
     const nextAttempts = attempts + 1
     const nextCorrectAnswers = isCorrect ? correctAnswers + 1 : correctAnswers
 
+    setSelectedIndex(clickedIndex)
     setAttempts((prev) => prev + 1)
     if (isCorrect) {
       setCorrectAnswers((prev) => prev + 1)
-      setFeedback('Correct!')
-    } else {
-      setFeedback('Incorrect!')
     }
 
     setIsTransitioning(true)
@@ -140,9 +138,26 @@ export function PlayPage() {
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <div>
           <h1 className="h2 mb-1">{quiz.title}</h1>
-          <p className="text-muted mb-0">
+          <p className="text-muted mb-1">
             Question {currentQuestionIndex + 1} of {quizQuestions.length}
           </p>
+          <div
+            className="progress"
+            role="progressbar"
+            aria-label="Quiz progress"
+            aria-valuenow={currentQuestionIndex + 1}
+            aria-valuemin={1}
+            aria-valuemax={quizQuestions.length}
+            style={{ height: '8px', minWidth: '200px' }}
+          >
+            <div
+              className="progress-bar"
+              style={{
+                width: `${((currentQuestionIndex + 1) / quizQuestions.length) * 100}%`,
+                transition: 'width 0.4s ease',
+              }}
+            />
+          </div>
         </div>
         <button
           type="button"
@@ -184,17 +199,26 @@ export function PlayPage() {
         <div className="card-body">
           <h2 className="h5 mb-3">{currentQuestion.text}</h2>
           <div className="d-grid gap-2 mb-3">
-            {currentQuestion.options.map((option, index) => (
-              <button
-                key={`${currentQuestion.id}-${option}`}
-                type="button"
-                className="btn btn-outline-primary text-start"
-                onClick={() => handleAnswerClick(index)}
-                disabled={isTransitioning}
-              >
-                {option}
-              </button>
-            ))}
+            {currentQuestion.options.map((option, index) => {
+              let btnClass = 'btn btn-outline-primary text-start'
+              if (selectedIndex !== null && index === selectedIndex) {
+                btnClass =
+                  index === currentQuestion.correctIndex
+                    ? 'btn btn-success text-start'
+                    : 'btn btn-danger text-start'
+              }
+              return (
+                <button
+                  key={`${currentQuestion.id}-${option}`}
+                  type="button"
+                  className={btnClass}
+                  onClick={() => handleAnswerClick(index)}
+                  disabled={isTransitioning}
+                >
+                  {option}
+                </button>
+              )
+            })}
           </div>
 
           <button
@@ -215,12 +239,6 @@ export function PlayPage() {
           )}
         </div>
       </article>
-
-      {feedback && (
-        <div className="alert alert-info mt-3 mb-0" role="status">
-          {feedback}
-        </div>
-      )}
 
       {showQuitModal && (
         <>
