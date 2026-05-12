@@ -13,3 +13,65 @@
 - joellegh@edu.jmc.ac.il
 
 ---
+
+## Project overview
+
+TriviaHub is a single-page quiz application built with React (TypeScript) in `frontend/` and a Spring Boot backend in the repository root. Phase 1 uses static mock data in `frontend/src/mockData.js`. Phase 2 replaces that data with REST API calls to the backend on port `8080`.
+
+The app includes seven routes: Home, Quiz Browser, Play, Results, Global Leaderboard, Admin CRUD, and About.
+
+---
+
+## How to run the exercise
+
+### Phase 1
+
+1. IntelliJ run config
+2. Open a terminal in `frontend/`.
+3. Install dependencies: `npm install`
+4. Start the dev server: `npm run dev`
+5. Open the URL shown in the terminal (Vite default is `http://localhost:5173`).
+
+---
+
+## Score calculation
+
+The final score is an integer from 0 to 100. It is computed on the Results page from the game session passed through React Router state (`correctAnswers`, `totalQuestions`, `durationSec`, `hintsUsed`). The same formula should be used anywhere the score is calculated (frontend and backend in Phase 2).
+
+If `totalQuestions` is missing or not greater than zero, the score is `0`.
+
+Otherwise:
+
+1. **Accuracy (up to 80 points)**  
+   `accuracyPart = (correctAnswers / totalQuestions) * 80`
+
+2. **Time bonus (up to 20 points)**  
+   Duration is clamped to the range 0–180 seconds.  
+   `timePart = ((180 - boundedDuration) / 180) * 20`  
+   Faster runs earn more of the 20 points; at 180 seconds or more, the time bonus is 0.
+
+3. **Hint penalty**  
+   Each hint used subtracts 4 points: `hintPenalty = hintsUsed * 4`
+
+4. **Final score**  
+   `rawScore = accuracyPart + timePart - hintPenalty`  
+   The result is rounded to the nearest integer and clamped to the range 0–100.
+
+**Example:** 4 correct out of 5, 78 seconds, 1 hint used:
+
+- Accuracy: `(4/5) * 80 = 64`
+- Time: `((180 - 78) / 180) * 20 ≈ 11.33`
+- Hints: `1 * 4 = 4`
+- Raw: `64 + 11.33 - 4 ≈ 71.33` → **71**
+
+Implementation reference: `computeScore` in `frontend/src/pages/ResultsPage.tsx`.
+
+---
+
+
+---
+
+## Limitations (Phase 1)
+
+- Admin changes affect in-memory state in the browser only until the backend is wired in Phase 2.
+- The backend skeleton may be present before all REST endpoints and `.ser` persistence are implemented.
