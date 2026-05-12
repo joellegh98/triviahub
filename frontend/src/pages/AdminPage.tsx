@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { questions as initialQuestions, quizzes as initialQuizzes } from '../mockData.js'
 import type { Question } from '../types'
 
@@ -40,6 +40,20 @@ export function AdminPage() {
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm)
   const [questionErrors, setQuestionErrors] = useState<QuestionFormErrors>({})
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
+  const questionsSectionRef = useRef<HTMLElement>(null)
+  const questionFormRef = useRef<HTMLFormElement>(null)
+
+  const scrollToQuestionsSection = () => {
+    window.requestAnimationFrame(() => {
+      questionsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  const scrollToQuestionForm = () => {
+    window.requestAnimationFrame(() => {
+      questionFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId) || null
   const selectedQuizQuestions = useMemo(
@@ -219,6 +233,7 @@ export function AdminPage() {
       hint: question.hint,
     })
     setQuestionErrors({})
+    scrollToQuestionForm()
   }
 
   /**
@@ -331,7 +346,10 @@ export function AdminPage() {
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-secondary"
-                          onClick={() => setSelectedQuizId(quiz.id)}
+                          onClick={() => {
+                            setSelectedQuizId(quiz.id)
+                            scrollToQuestionsSection()
+                          }}
                         >
                           Manage questions
                         </button>
@@ -352,7 +370,7 @@ export function AdminPage() {
         </div>
       </div>
 
-      <article className="card shadow-sm mt-4">
+      <article ref={questionsSectionRef} className="card shadow-sm mt-4">
         <div className="card-body text-start">
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
             <h2 className="h5 mb-0">Questions</h2>
@@ -381,7 +399,12 @@ export function AdminPage() {
             </div>
           ) : (
             <>
-              <form onSubmit={handleQuestionSubmit} noValidate className="mb-4">
+              <form
+                ref={questionFormRef}
+                onSubmit={handleQuestionSubmit}
+                noValidate
+                className="mb-4"
+              >
                 <div className="mb-3">
                   <label htmlFor="questionText" className="form-label">
                     Question text
