@@ -5,7 +5,6 @@ import { questions, quizzes } from '../mockData.js'
 /**
  * Quiz browser page. Lets users filter quizzes by category and search by title,
  * then navigate to the play page for a chosen quiz.
- * @returns {JSX.Element}
  */
 export function QuizzesPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -13,7 +12,7 @@ export function QuizzesPage() {
 
   const categories = ['all', ...new Set(quizzes.map((quiz) => quiz.category))]
 
-  const questionCountByQuizId = questions.reduce((acc, question) => {
+  const questionCountByQuizId = questions.reduce<Record<string, number>>((acc, question) => {
     acc[question.quizId] = (acc[question.quizId] || 0) + 1
     return acc
   }, {})

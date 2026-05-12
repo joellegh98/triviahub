@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { questions, quizzes } from '../mockData.js'
+import type { Question } from '../types'
 
 /**
  * Returns a new array with the same elements in a random (Fisher-Yates) order.
  * The original array is not mutated.
- * @template T
- * @param {T[]} items
- * @returns {T[]}
  */
-function shuffleArray(items) {
+function shuffleArray<T>(items: T[]) {
   const copy = [...items]
   for (let i = copy.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1))
@@ -23,19 +21,20 @@ function shuffleArray(items) {
  * Loads questions for the quiz identified by the `:quizId` URL param, shuffles them,
  * runs a stopwatch, tracks attempts and hints, and navigates to the results page
  * when the last question is answered.
- * @returns {JSX.Element}
  */
 export function PlayPage() {
   const { quizId } = useParams()
   const navigate = useNavigate()
-  const [quizQuestions, setQuizQuestions] = useState([])
+  const [quizQuestions, setQuizQuestions] = useState<Question[]>([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [attempts, setAttempts] = useState(0)
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [hintsUsed, setHintsUsed] = useState(0)
-  const [revealedHintQuestionIds, setRevealedHintQuestionIds] = useState({})
+  const [revealedHintQuestionIds, setRevealedHintQuestionIds] = useState<
+    Record<string, boolean>
+  >({})
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [selectedIndex, setSelectedIndex] = useState(null)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [showQuitModal, setShowQuitModal] = useState(false)
   const [noQuestionsWarning, setNoQuestionsWarning] = useState(false)
@@ -93,10 +92,8 @@ export function PlayPage() {
   /**
    * Advances to the next question, or navigates to the results page when the last
    * question has been answered.
-   * @param {number} nextAttempts - Updated total attempts count after current answer.
-   * @param {number} nextCorrectAnswers - Updated correct-answers count after current answer.
    */
-  const moveToNextQuestion = (nextAttempts, nextCorrectAnswers) => {
+  const moveToNextQuestion = (nextAttempts: number, nextCorrectAnswers: number) => {
     setSelectedIndex(null)
     setIsTransitioning(false)
 
@@ -121,9 +118,8 @@ export function PlayPage() {
    * Handles a player clicking one of the answer option buttons.
    * Colours the button green/red, updates counters, and schedules the transition
    * to the next question after a short delay.
-   * @param {number} clickedIndex - Zero-based index of the option the player selected.
    */
-  const handleAnswerClick = (clickedIndex) => {
+  const handleAnswerClick = (clickedIndex: number) => {
     if (!currentQuestion || isTransitioning) {
       return
     }
@@ -274,7 +270,7 @@ export function PlayPage() {
         <>
           <div
             className="modal fade show d-block"
-            tabIndex="-1"
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
           >

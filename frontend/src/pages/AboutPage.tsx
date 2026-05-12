@@ -1,6 +1,5 @@
 /**
  * About page for TriviaHub.
- * @returns {JSX.Element}
  */
 export function AboutPage() {
   return (

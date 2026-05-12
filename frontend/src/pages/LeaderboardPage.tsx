@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react'
 import { gameResults, quizzes } from '../mockData.js'
 
+type LeaderboardSort = 'score' | 'date' | 'player'
+
 /**
  * Global leaderboard page. Shows the top 20 game results across all quizzes,
  * sortable by score, date, or player name.
- * @returns {JSX.Element}
  */
 export function LeaderboardPage() {
-  const [sortBy, setSortBy] = useState('score')
+  const [sortBy, setSortBy] = useState<LeaderboardSort>('score')
 
   const quizTitleById = useMemo(
     () =>
-      quizzes.reduce((acc, quiz) => {
+      quizzes.reduce<Record<string, string>>((acc, quiz) => {
         acc[quiz.id] = quiz.title
         return acc
       }, {}),
@@ -52,7 +53,7 @@ export function LeaderboardPage() {
             id="leaderboardSort"
             className="form-select"
             value={sortBy}
-            onChange={(event) => setSortBy(event.target.value)}
+            onChange={(event) => setSortBy(event.target.value as LeaderboardSort)}
           >
             <option value="score">Score</option>
             <option value="date">Date</option>

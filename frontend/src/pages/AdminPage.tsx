@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { questions as initialQuestions, quizzes as initialQuizzes } from '../mockData.js'
+import type { Question } from '../types'
 
 const emptyQuizForm = {
   title: '',
@@ -9,10 +10,16 @@ const emptyQuizForm = {
 
 const emptyQuestionForm = {
   text: '',
-  options: ['', '', '', ''],
+  options: ['', '', '', ''] as [string, string, string, string],
   correctIndex: 0,
   hint: '',
 }
+
+type QuizFormErrors = Partial<Record<'title' | 'category', string>>
+
+type QuestionFormErrors = Partial<
+  Record<'quizId' | 'text' | 'correctIndex', string> & { options: string[] }
+>
 
 /**
  * Admin CRUD page (local state only, no backend).
@@ -28,11 +35,11 @@ export function AdminPage() {
   )
 
   const [quizForm, setQuizForm] = useState(emptyQuizForm)
-  const [quizErrors, setQuizErrors] = useState({})
+  const [quizErrors, setQuizErrors] = useState<QuizFormErrors>({})
 
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm)
-  const [questionErrors, setQuestionErrors] = useState({})
-  const [editingQuestionId, setEditingQuestionId] = useState(null)
+  const [questionErrors, setQuestionErrors] = useState<QuestionFormErrors>({})
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId) || null
   const selectedQuizQuestions = useMemo(
@@ -47,7 +54,7 @@ export function AdminPage() {
    * @returns {Object.<string, string>} Map of field name → error message (empty if valid).
    */
   const validateQuizForm = () => {
-    const errors = {}
+    const errors: QuizFormErrors = {}
     const normalizedTitle = quizForm.title.trim().toLowerCase()
     const normalizedCategory = quizForm.category.trim().toLowerCase()
 
@@ -76,7 +83,7 @@ export function AdminPage() {
    * Validates input, creates a new quiz with a timestamp-based id, and resets the form.
    * @param {React.FormEvent<HTMLFormElement>} event
    */
-  const handleQuizSubmit = (event) => {
+  const handleQuizSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const errors = validateQuizForm()
     setQuizErrors(errors)
@@ -105,7 +112,7 @@ export function AdminPage() {
    * If the deleted quiz was selected, the selection falls back to the next available quiz.
    * @param {string} quizIdToDelete
    */
-  const handleDeleteQuiz = (quizIdToDelete) => {
+  const handleDeleteQuiz = (quizIdToDelete: string) => {
     setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizIdToDelete))
     setQuestions((prev) =>
       prev.filter((question) => question.quizId !== quizIdToDelete),
@@ -127,7 +134,7 @@ export function AdminPage() {
    * @returns {Object.<string, string|string[]>} Map of field name → error message(s).
    */
   const validateQuestionForm = () => {
-    const errors = {}
+    const errors: QuestionFormErrors = {}
 
     if (!selectedQuizId) {
       errors.quizId = 'Select a quiz before adding a question.'
@@ -161,7 +168,7 @@ export function AdminPage() {
    * Resets the form and clears the editing id on success.
    * @param {React.FormEvent<HTMLFormElement>} event
    */
-  const handleQuestionSubmit = (event) => {
+  const handleQuestionSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const errors = validateQuestionForm()
     setQuestionErrors(errors)
@@ -174,7 +181,12 @@ export function AdminPage() {
       id: editingQuestionId || `q-${Date.now()}`,
       quizId: selectedQuizId,
       text: questionForm.text.trim(),
-      options: questionForm.options.map((option) => option.trim()),
+      options: questionForm.options.map((option) => option.trim()) as [
+        string,
+        string,
+        string,
+        string,
+      ],
       correctIndex: questionForm.correctIndex,
       hint: questionForm.hint.trim() || 'No hint provided.',
     }
@@ -198,7 +210,7 @@ export function AdminPage() {
    * Populates the question form with an existing question's data to begin editing it.
    * @param {{ id: string, text: string, options: string[], correctIndex: number, hint: string }} question
    */
-  const startEditingQuestion = (question) => {
+  const startEditingQuestion = (question: Question) => {
     setEditingQuestionId(question.id)
     setQuestionForm({
       text: question.text,
@@ -214,7 +226,7 @@ export function AdminPage() {
    * If the deleted question was being edited, the form is also cleared.
    * @param {string} questionId
    */
-  const handleDeleteQuestion = (questionId) => {
+  const handleDeleteQuestion = (questionId: string) => {
     setQuestions((prev) => prev.filter((question) => question.id !== questionId))
     if (editingQuestionId === questionId) {
       setEditingQuestionId(null)
@@ -276,7 +288,7 @@ export function AdminPage() {
                   <textarea
                     id="quizDescription"
                     className="form-control"
-                    rows="2"
+                    rows={2}
                     value={quizForm.description}
                     onChange={(event) =>
                       setQuizForm((prev) => ({
@@ -406,7 +418,7 @@ export function AdminPage() {
                             ...prev,
                             options: prev.options.map((item, optionIndex) =>
                               optionIndex === index ? event.target.value : item,
-                            ),
+                            ) as [string, string, string, string],
                           }))
                         }
                       />

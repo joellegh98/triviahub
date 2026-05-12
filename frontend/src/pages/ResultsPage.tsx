@@ -1,14 +1,23 @@
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { gameResults, quizzes } from '../mockData.js'
+import type { ResultsLocationState } from '../types'
 
 /**
  * Computes a 0–100 score from game stats.
  * Accuracy contributes 80 points, time bonus up to 20 points (capped at 180 s),
  * and each hint costs 4 points.
- * @param {{ correctAnswers: number, totalQuestions: number, durationSec: number, hintsUsed: number }} params
- * @returns {number} Rounded integer score in [0, 100]
  */
-function computeScore({ correctAnswers, totalQuestions, durationSec, hintsUsed }) {
+function computeScore({
+  correctAnswers,
+  totalQuestions,
+  durationSec,
+  hintsUsed,
+}: {
+  correctAnswers: number
+  totalQuestions: number
+  durationSec: number
+  hintsUsed: number
+}) {
   if (!totalQuestions || totalQuestions <= 0) {
     return 0
   }
@@ -29,12 +38,11 @@ function computeScore({ correctAnswers, totalQuestions, durationSec, hintsUsed }
 /**
  * Post-game results page. Reads game stats from React Router navigation state,
  * computes the player's score, and displays it alongside a per-quiz top-10 leaderboard.
- * @returns {JSX.Element}
  */
 export function ResultsPage() {
   const { quizId } = useParams()
   const location = useLocation()
-  const resultState = location.state
+  const resultState = location.state as ResultsLocationState | null
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === quizId)
 
@@ -48,6 +56,7 @@ export function ResultsPage() {
           totalQuestions: resultState.totalQuestions,
           durationSec: resultState.durationSec,
           hintsUsed: resultState.hintsUsed,
+          attempts: resultState.attempts,
           playedAt: new Date().toISOString(),
         }
       : null
@@ -61,7 +70,7 @@ export function ResultsPage() {
         ? [
             {
               ...localRun,
-              score: currentScore,
+              score: currentScore ?? 0,
             },
           ]
         : [],
@@ -128,7 +137,7 @@ export function ResultsPage() {
             <div className="card h-100">
               <div className="card-body text-center">
                 <p className="text-muted mb-2">Attempts</p>
-                <p className="h3 fw-semibold mb-0">{resultState.attempts}</p>
+                <p className="h3 fw-semibold mb-0">{localRun.attempts}</p>
               </div>
             </div>
           </div>
