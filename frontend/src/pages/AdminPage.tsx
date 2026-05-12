@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type SubmitEventHandler } from 'react'
 import { questions as initialQuestions, quizzes as initialQuizzes } from '../mockData.js'
 import type { Question } from '../types'
 
@@ -95,9 +95,9 @@ export function AdminPage() {
   /**
    * Handles submission of the Add Quiz form.
    * Validates input, creates a new quiz with a timestamp-based id, and resets the form.
-   * @param {React.FormEvent<HTMLFormElement>} event
+   * @param event
    */
-  const handleQuizSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleQuizSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault()
     const errors = validateQuizForm()
     setQuizErrors(errors)
@@ -180,9 +180,9 @@ export function AdminPage() {
    * Handles submission of the Add/Edit Question form.
    * When editing, updates the matching question in state; otherwise appends a new one.
    * Resets the form and clears the editing id on success.
-   * @param {React.FormEvent<HTMLFormElement>} event
+   * @param event
    */
-  const handleQuestionSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleQuestionSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault()
     const errors = validateQuestionForm()
     setQuestionErrors(errors)
