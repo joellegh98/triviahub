@@ -70,7 +70,7 @@ Otherwise:
 - Hints: `1 * 4 = 4`
 - Raw: `64 + 11.33 - 4 ≈ 71.33` → **71**
 
-Implementation reference: `computeScore` in `frontend/src/pages/ResultsPage.tsx`.
+Implementation reference: `computeScore` in `frontend/src/utils/computeScore.ts`.
 
 ---
 

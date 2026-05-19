@@ -136,6 +136,7 @@ public final class ValidationUtils {
         }
     }
 
+    /** Trims and lower-cases {@code value}, returning an empty string for {@code null} input. */
     private static String normalize(String value) {
         return value != null ? value.trim().toLowerCase() : "";
     }

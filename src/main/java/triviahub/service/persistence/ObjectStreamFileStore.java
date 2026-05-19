@@ -23,6 +23,10 @@ public class ObjectStreamFileStore {
     private final Path baseDirectory;
     private final Map<String, Object> fileLocks = new ConcurrentHashMap<>();
 
+    /**
+     * Creates the store, resolving the base directory from the {@code triviahub.persistence.directory}
+     * application property (defaults to the current working directory).
+     */
     public ObjectStreamFileStore(
             @Value("${triviahub.persistence.directory:.}") String persistenceDirectory
     ) throws IOException {
@@ -110,6 +114,10 @@ public class ObjectStreamFileStore {
         }
     }
 
+    /**
+     * Reads and deserializes the list from {@code filename} without acquiring the file lock.
+     * Must only be called from within a {@code synchronized} block on {@link #lockFor(String)}.
+     */
     @SuppressWarnings("unchecked")
     private <T> List<T> readListUnlocked(String filename) {
         Path target = resolve(filename);
@@ -129,6 +137,10 @@ public class ObjectStreamFileStore {
         }
     }
 
+    /**
+     * Serializes and writes {@code data} to {@code filename} via an atomic temp-file rename.
+     * Must only be called from within a {@code synchronized} block on {@link #lockFor(String)}.
+     */
     private <T> void writeListUnlocked(String filename, List<T> data) {
         Path target = resolve(filename);
         Path temp = target.resolveSibling(target.getFileName() + ".tmp");
@@ -147,10 +159,12 @@ public class ObjectStreamFileStore {
         }
     }
 
+    /** Returns the absolute path for {@code filename} inside the base directory. */
     private Path resolve(String filename) {
         return baseDirectory.resolve(filename);
     }
 
+    /** Returns the per-file monitor object used as a {@code synchronized} lock. */
     private Object lockFor(String filename) {
         return fileLocks.computeIfAbsent(filename, ignored -> new Object());
     }

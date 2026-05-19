@@ -135,6 +135,7 @@ public class GameResultService {
         });
     }
 
+    /** Returns a comparator that orders results by score descending, then by most-recent play date. */
     private static Comparator<GameResult> leaderboardComparator() {
         return Comparator
                 .comparingInt(GameResult::getScore).reversed()

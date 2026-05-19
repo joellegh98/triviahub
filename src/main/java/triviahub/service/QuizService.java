@@ -176,6 +176,9 @@ public class QuizService {
         }
     }
 
+    /**
+     * Converts a {@link Quiz} entity to a {@link QuizResponse} DTO with its question count.
+     */
     private QuizResponse toResponse(Quiz quiz) {
         int count = questionService.findByQuizId(quiz.getId()).size();
         return new QuizResponse(
@@ -187,12 +190,18 @@ public class QuizService {
         );
     }
 
+    /**
+     * Returns {@code true} if any quiz in {@code quizzes} (other than {@code excludeId}) has the same title.
+     */
     private static boolean hasDuplicateTitle(List<Quiz> quizzes, String title, String excludeId) {
         return quizzes.stream()
                 .filter(quiz -> excludeId == null || !excludeId.equals(quiz.getId()))
                 .anyMatch(quiz -> title.equals(quiz.getTitle() != null ? quiz.getTitle().trim().toLowerCase() : ""));
     }
 
+    /**
+     * Trims whitespace from the description, returning an empty string for {@code null} input.
+     */
     private static String normalizeDescription(String description) {
         if (description == null) {
             return "";

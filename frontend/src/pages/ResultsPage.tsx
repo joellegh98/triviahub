@@ -10,6 +10,10 @@ import type { GameResult, Quiz, ResultsLocationState } from '../types'
 // fetching the leaderboard, or the result won't appear yet.
 let activeSavePromise: Promise<void> | null = null
 
+/**
+ * Post-game results page. Saves the run to the backend on mount, then loads the
+ * quiz top-10 leaderboard. Local stats remain visible even if saving fails.
+ */
 export function ResultsPage() {
   const { quizId } = useParams()
   const location = useLocation()
