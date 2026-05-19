@@ -1,14 +1,57 @@
-import { useMemo, useState } from 'react'
-import { gameResults, quizzes } from '../mockData.js'
+import { useEffect, useMemo, useState } from 'react'
+import { ApiError, fetchGlobalLeaderboard, fetchQuizzes, type QuizListItem } from '../api'
+import type { GameResult } from '../types'
 
 type LeaderboardSort = 'score' | 'date' | 'player'
 
 /**
  * Global leaderboard page. Shows the top 20 game results across all quizzes,
- * sortable by score, date, or player name.
+ * sortable by score, date, or player name. Data is loaded from the API on mount.
  */
 export function LeaderboardPage() {
   const [sortBy, setSortBy] = useState<LeaderboardSort>('score')
+  const [quizzes, setQuizzes] = useState<QuizListItem[]>([])
+  const [gameResults, setGameResults] = useState<GameResult[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [quizList, results] = await Promise.all([
+          fetchQuizzes(),
+          fetchGlobalLeaderboard(),
+        ])
+        if (!cancelled) {
+          setQuizzes(quizList)
+          setGameResults(results)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message =
+            err instanceof ApiError
+              ? err.message
+              : 'Could not load leaderboard data from the server.'
+          setError(message)
+          setQuizzes([])
+          setGameResults([])
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const quizTitleById = useMemo(
     () =>
@@ -16,7 +59,7 @@ export function LeaderboardPage() {
         acc[quiz.id] = quiz.title
         return acc
       }, {}),
-    [],
+    [quizzes],
   )
 
   const topResults = useMemo(() => {
@@ -35,7 +78,7 @@ export function LeaderboardPage() {
     })
 
     return copy.slice(0, 20)
-  }, [sortBy])
+  }, [gameResults, sortBy])
 
   return (
     <section>
@@ -62,9 +105,17 @@ export function LeaderboardPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="alert alert-warning mb-3" role="status">
+          {error}
+        </div>
+      )}
+
       <article className="card shadow-sm">
         <div className="card-body">
-          {topResults.length === 0 ? (
+          {loading ? (
+            <p className="text-muted mb-0">Loading leaderboard…</p>
+          ) : topResults.length === 0 ? (
             <p className="text-muted mb-0">No results available yet.</p>
           ) : (
             <div className="table-responsive">

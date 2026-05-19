@@ -16,7 +16,7 @@
 
 ## Project overview
 
-TriviaHub is a single-page quiz application built with React (TypeScript) in `frontend/` and a Spring Boot backend in the repository root. Phase 1 uses static mock data in `frontend/src/mockData.js`. Phase 2 replaces that data with REST API calls to the backend on port `8080`.
+TriviaHub is a single-page quiz application built with React (TypeScript) in `frontend/` and a Spring Boot backend in the repository root. The UI loads quizzes, questions, and leaderboard data from the REST API (`frontend/src/api.ts`, proxied to `http://localhost:8080`). The file `frontend/src/mockData.js` is kept as reference seed content only and is no longer imported by the app.
 
 The app includes seven routes: Home, Quiz Browser, Play, Results, Global Leaderboard, Admin CRUD, and About.
 
@@ -31,6 +31,12 @@ The app includes seven routes: Home, Quiz Browser, Play, Results, Global Leaderb
 3. Install dependencies: `npm install`
 4. Start the dev server: `npm run dev`
 5. Open the URL shown in the terminal (Vite default is `http://localhost:5173`).
+
+### Phase 2 (API-backed UI)
+
+1. From the repo root, run **DataInit** once so `quizzes.ser`, `questions.ser`, and `results.ser` exist (same working directory you use for the backend).
+2. Start the Spring Boot app on port **8080** (`TriviaHubApplication`).
+3. In `frontend/`, run `npm run dev`. The Vite dev server proxies `/api` to the backend (`frontend/vite.config.ts`).
 
 ---
 
@@ -71,7 +77,7 @@ Implementation reference: `computeScore` in `frontend/src/pages/ResultsPage.tsx`
 
 ---
 
-## Limitations (Phase 1)
+## Limitations
 
-- Admin changes affect in-memory state in the browser only until the backend is wired in Phase 2.
-- The backend skeleton may be present before all REST endpoints and `.ser` persistence are implemented.
+- Global “games on leaderboard” on the home page counts entries returned by `GET /api/leaderboard` (up to 20), not every saved game in storage.
+- `POST /results` (save after a run) is wired in P2-7; the results page still merges the current session into the displayed top-10 for preview.

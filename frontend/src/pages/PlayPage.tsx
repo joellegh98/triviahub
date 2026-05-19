@@ -1,30 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { questions, quizzes } from '../mockData.js'
+import { ApiError, fetchQuiz, fetchRandomQuestionsForQuiz, type QuizListItem } from '../api'
 import type { Question } from '../types'
 
 /**
- * Returns a new array with the same elements in a random (Fisher-Yates) order.
- * The original array is not mutated.
- */
-function shuffleArray<T>(items: T[]) {
-  const copy = [...items]
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy
-}
-
-/**
  * Interactive quiz play page.
- * Loads questions for the quiz identified by the `:quizId` URL param, shuffles them,
+ * Loads quiz metadata and shuffled questions from the API when {@code quizId} changes,
  * runs a stopwatch, tracks attempts and hints, and navigates to the results page
  * when the last question is answered.
  */
 export function PlayPage() {
   const { quizId } = useParams()
   const navigate = useNavigate()
+  const [quiz, setQuiz] = useState<QuizListItem | null>(null)
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [attempts, setAttempts] = useState(0)
@@ -38,31 +26,75 @@ export function PlayPage() {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [showQuitModal, setShowQuitModal] = useState(false)
   const [noQuestionsWarning, setNoQuestionsWarning] = useState(false)
-
-  const quiz = useMemo(
-    () => quizzes.find((item) => item.id === quizId),
-    [quizId],
-  )
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const currentQuestion = quizQuestions[currentQuestionIndex]
 
   useEffect(() => {
-    const selectedQuizQuestions = questions.filter(
-      (question) => question.quizId === quizId,
-    )
-
-    if (selectedQuizQuestions.length === 0) {
-      setNoQuestionsWarning(true)
-      const redirectTimer = window.setTimeout(() => {
-        navigate('/quizzes')
-      }, 1800)
-
-      return () => window.clearTimeout(redirectTimer)
+    if (!quizId) {
+      return undefined
     }
 
-    setQuizQuestions(shuffleArray(selectedQuizQuestions))
-    return undefined
-  }, [navigate, quizId])
+    const id = quizId
+
+    let cancelled = false
+    let redirectTimer: number | undefined
+
+    setLoading(true)
+    setLoadError(null)
+    setNoQuestionsWarning(false)
+    setQuiz(null)
+    setQuizQuestions([])
+    setCurrentQuestionIndex(0)
+    setAttempts(0)
+    setCorrectAnswers(0)
+    setHintsUsed(0)
+    setRevealedHintQuestionIds({})
+    setElapsedSeconds(0)
+    setSelectedIndex(null)
+    setIsTransitioning(false)
+
+    async function load() {
+      try {
+        const [quizData, questionsData] = await Promise.all([
+          fetchQuiz(id),
+          fetchRandomQuestionsForQuiz(id),
+        ])
+        if (cancelled) {
+          return
+        }
+        setQuiz(quizData)
+        if (questionsData.length === 0) {
+          setNoQuestionsWarning(true)
+          redirectTimer = window.setTimeout(() => {
+            navigate('/quizzes')
+          }, 1800)
+        } else {
+          setQuizQuestions(questionsData)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message =
+            err instanceof ApiError ? err.message : 'Could not load this quiz from the server.'
+          setLoadError(message)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void load()
+
+    return () => {
+      cancelled = true
+      if (redirectTimer !== undefined) {
+        window.clearTimeout(redirectTimer)
+      }
+    }
+  }, [quizId, navigate])
 
   useEffect(() => {
     if (quizQuestions.length === 0 || noQuestionsWarning) {
@@ -116,8 +148,6 @@ export function PlayPage() {
 
   /**
    * Handles a player clicking one of the answer option buttons.
-   * Colours the button green/red, updates counters, and schedules the transition
-   * to the next question after a short delay.
    */
   const handleAnswerClick = (clickedIndex: number) => {
     if (!currentQuestion || isTransitioning) {
@@ -141,6 +171,23 @@ export function PlayPage() {
     )
   }
 
+  if (loadError) {
+    return (
+      <section>
+        <div className="alert alert-danger mb-0" role="status">
+          {loadError}
+        </div>
+        <button
+          type="button"
+          className="btn btn-outline-secondary mt-3"
+          onClick={() => navigate('/quizzes')}
+        >
+          Back to quizzes
+        </button>
+      </section>
+    )
+  }
+
   if (noQuestionsWarning) {
     return (
       <section>
@@ -151,7 +198,7 @@ export function PlayPage() {
     )
   }
 
-  if (!quiz || !currentQuestion) {
+  if (loading || !quiz || !currentQuestion) {
     return (
       <section>
         <p className="text-muted mb-0">Loading game...</p>

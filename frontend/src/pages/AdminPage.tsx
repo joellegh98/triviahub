@@ -1,5 +1,16 @@
-import { useMemo, useRef, useState, type SubmitEventHandler } from 'react'
-import { questions as initialQuestions, quizzes as initialQuizzes } from '../mockData.js'
+import { useEffect, useMemo, useRef, useState, type SubmitEventHandler } from 'react'
+import {
+  ApiError,
+  createQuestion,
+  createQuiz,
+  deleteQuestion,
+  deleteQuiz,
+  fetchQuestionsForQuiz,
+  fetchQuizzes,
+  getFieldErrorsFromApiError,
+  updateQuestion,
+  type QuizListItem,
+} from '../api'
 import type { Question } from '../types'
 
 const emptyQuizForm = {
@@ -22,17 +33,16 @@ type QuestionFormErrors = Partial<
 >
 
 /**
- * Admin CRUD page (local state only, no backend).
- * Allows creating and deleting quizzes, and adding, editing, and deleting questions
- * within a selected quiz.
+ * Admin CRUD page backed by the Spring API.
+ * Loads quizzes and questions on mount and whenever {@code dataVersion} increments.
  * @returns {JSX.Element}
  */
 export function AdminPage() {
-  const [quizzes, setQuizzes] = useState(initialQuizzes)
-  const [questions, setQuestions] = useState(initialQuestions)
-  const [selectedQuizId, setSelectedQuizId] = useState(
-    initialQuizzes[0] ? initialQuizzes[0].id : '',
-  )
+  const [dataVersion, setDataVersion] = useState(0)
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [quizzes, setQuizzes] = useState<QuizListItem[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [selectedQuizId, setSelectedQuizId] = useState('')
 
   const [quizForm, setQuizForm] = useState(emptyQuizForm)
   const [quizErrors, setQuizErrors] = useState<QuizFormErrors>({})
@@ -40,6 +50,7 @@ export function AdminPage() {
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm)
   const [questionErrors, setQuestionErrors] = useState<QuestionFormErrors>({})
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const questionsSectionRef = useRef<HTMLElement>(null)
   const questionFormRef = useRef<HTMLFormElement>(null)
 
@@ -55,6 +66,52 @@ export function AdminPage() {
     })
   }
 
+  useEffect(() => {
+    let cancelled = false
+    setLoadState('loading')
+
+    async function load() {
+      try {
+        const quizList = await fetchQuizzes()
+        const nested = await Promise.all(
+          quizList.map(async (quiz) => ({
+            quizId: quiz.id,
+            items: await fetchQuestionsForQuiz(quiz.id),
+          })),
+        )
+        if (cancelled) {
+          return
+        }
+        const allQuestions = nested.flatMap((entry) => entry.items)
+        setQuizzes(quizList)
+        setQuestions(allQuestions)
+        setSelectedQuizId((prev) => {
+          if (prev && quizList.some((q) => q.id === prev)) {
+            return prev
+          }
+          return quizList[0]?.id ?? ''
+        })
+        setLoadState('ready')
+      } catch {
+        if (!cancelled) {
+          setLoadState('error')
+          setQuizzes([])
+          setQuestions([])
+          setSelectedQuizId('')
+        }
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [dataVersion])
+
+  const refresh = () => {
+    setDataVersion((v) => v + 1)
+  }
+
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId) || null
   const selectedQuizQuestions = useMemo(
     () => questions.filter((question) => question.quizId === selectedQuizId),
@@ -62,9 +119,7 @@ export function AdminPage() {
   )
 
   /**
-   * Validates the Add Quiz form fields.
-   * Checks that title is non-empty and unique (case-insensitive),
-   * and that category contains letters only.
+   * Validates the Add Quiz form fields (client-side).
    * @returns {Object.<string, string>} Map of field name → error message (empty if valid).
    */
   const validateQuizForm = () => {
@@ -94,11 +149,11 @@ export function AdminPage() {
 
   /**
    * Handles submission of the Add Quiz form.
-   * Validates input, creates a new quiz with a timestamp-based id, and resets the form.
    * @param event
    */
-  const handleQuizSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
+  const handleQuizSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
+    setSubmitError(null)
     const errors = validateQuizForm()
     setQuizErrors(errors)
 
@@ -106,45 +161,60 @@ export function AdminPage() {
       return
     }
 
-    const newQuiz = {
-      id: `quiz-${Date.now()}`,
-      title: quizForm.title.trim(),
-      category: quizForm.category.trim().toLowerCase(),
-      description: quizForm.description.trim() || 'Custom quiz created in admin.',
+    try {
+      await createQuiz({
+        title: quizForm.title.trim(),
+        category: quizForm.category.trim().toLowerCase(),
+        description:
+          quizForm.description.trim() || 'Custom quiz created in admin.',
+      })
+      setQuizForm(emptyQuizForm)
+      setQuizErrors({})
+      refresh()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const fields = getFieldErrorsFromApiError(err)
+        if (fields) {
+          setQuizErrors({
+            title: fields.title,
+            category: fields.category,
+          })
+        } else if (err.status === 409) {
+          setQuizErrors({ title: err.message })
+        } else {
+          setSubmitError(err.message)
+        }
+      } else {
+        setSubmitError('Could not create quiz.')
+      }
     }
-
-    setQuizzes((prev) => [...prev, newQuiz])
-    if (!selectedQuizId) {
-      setSelectedQuizId(newQuiz.id)
-    }
-    setQuizForm(emptyQuizForm)
-    setQuizErrors({})
   }
 
   /**
-   * Deletes a quiz and all its questions from local state.
-   * If the deleted quiz was selected, the selection falls back to the next available quiz.
+   * Deletes a quiz and all its questions via the API.
    * @param {string} quizIdToDelete
    */
-  const handleDeleteQuiz = (quizIdToDelete: string) => {
-    setQuizzes((prev) => prev.filter((quiz) => quiz.id !== quizIdToDelete))
-    setQuestions((prev) =>
-      prev.filter((question) => question.quizId !== quizIdToDelete),
-    )
-
-    if (selectedQuizId === quizIdToDelete) {
-      const nextQuiz = quizzes.find((quiz) => quiz.id !== quizIdToDelete)
-      setSelectedQuizId(nextQuiz ? nextQuiz.id : '')
-      setEditingQuestionId(null)
-      setQuestionForm(emptyQuestionForm)
-      setQuestionErrors({})
+  const handleDeleteQuiz = async (quizIdToDelete: string) => {
+    setSubmitError(null)
+    try {
+      await deleteQuiz(quizIdToDelete)
+      if (selectedQuizId === quizIdToDelete) {
+        setEditingQuestionId(null)
+        setQuestionForm(emptyQuestionForm)
+        setQuestionErrors({})
+      }
+      refresh()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setSubmitError(err.message)
+      } else {
+        setSubmitError('Could not delete quiz.')
+      }
     }
   }
 
   /**
    * Validates the Add/Edit Question form fields.
-   * Checks that a quiz is selected, question text is non-empty, all four options are
-   * non-empty, and the correct index is within [0, 3].
    * @returns {Object.<string, string|string[]>} Map of field name → error message(s).
    */
   const validateQuestionForm = () => {
@@ -178,12 +248,11 @@ export function AdminPage() {
 
   /**
    * Handles submission of the Add/Edit Question form.
-   * When editing, updates the matching question in state; otherwise appends a new one.
-   * Resets the form and clears the editing id on success.
    * @param event
    */
-  const handleQuestionSubmit: SubmitEventHandler<HTMLFormElement> = (event) => {
+  const handleQuestionSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
+    setSubmitError(null)
     const errors = validateQuestionForm()
     setQuestionErrors(errors)
 
@@ -191,38 +260,47 @@ export function AdminPage() {
       return
     }
 
-    const preparedQuestion = {
-      id: editingQuestionId || `q-${Date.now()}`,
-      quizId: selectedQuizId,
+    const payload = {
       text: questionForm.text.trim(),
-      options: questionForm.options.map((option) => option.trim()) as [
-        string,
-        string,
-        string,
-        string,
-      ],
+      options: [...questionForm.options.map((option) => option.trim())],
       correctIndex: questionForm.correctIndex,
       hint: questionForm.hint.trim() || 'No hint provided.',
     }
 
-    if (editingQuestionId) {
-      setQuestions((prev) =>
-        prev.map((question) =>
-          question.id === editingQuestionId ? preparedQuestion : question,
-        ),
-      )
-    } else {
-      setQuestions((prev) => [...prev, preparedQuestion])
+    try {
+      if (editingQuestionId) {
+        await updateQuestion(editingQuestionId, payload)
+      } else {
+        await createQuestion(selectedQuizId, payload)
+      }
+      setEditingQuestionId(null)
+      setQuestionForm(emptyQuestionForm)
+      setQuestionErrors({})
+      refresh()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const fields = getFieldErrorsFromApiError(err)
+        if (fields) {
+          const optMsg = fields.options
+          setQuestionErrors({
+            text: fields.text,
+            correctIndex: fields.correctIndex,
+            ...(optMsg
+              ? { options: [optMsg, optMsg, optMsg, optMsg] }
+              : {}),
+          })
+        } else {
+          setSubmitError(err.message)
+        }
+      } else {
+        setSubmitError('Could not save question.')
+      }
     }
-
-    setEditingQuestionId(null)
-    setQuestionForm(emptyQuestionForm)
-    setQuestionErrors({})
   }
 
   /**
    * Populates the question form with an existing question's data to begin editing it.
-   * @param {{ id: string, text: string, options: string[], correctIndex: number, hint: string }} question
+   * @param question
    */
   const startEditingQuestion = (question: Question) => {
     setEditingQuestionId(question.id)
@@ -237,22 +315,57 @@ export function AdminPage() {
   }
 
   /**
-   * Removes a question from local state by id.
-   * If the deleted question was being edited, the form is also cleared.
+   * Removes a question via the API.
    * @param {string} questionId
    */
-  const handleDeleteQuestion = (questionId: string) => {
-    setQuestions((prev) => prev.filter((question) => question.id !== questionId))
-    if (editingQuestionId === questionId) {
-      setEditingQuestionId(null)
-      setQuestionForm(emptyQuestionForm)
-      setQuestionErrors({})
+  const handleDeleteQuestion = async (questionId: string) => {
+    setSubmitError(null)
+    try {
+      await deleteQuestion(questionId)
+      if (editingQuestionId === questionId) {
+        setEditingQuestionId(null)
+        setQuestionForm(emptyQuestionForm)
+        setQuestionErrors({})
+      }
+      refresh()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setSubmitError(err.message)
+      } else {
+        setSubmitError('Could not delete question.')
+      }
     }
+  }
+
+  if (loadState === 'loading') {
+    return (
+      <section>
+        <h1 className="h2 mb-4">Admin</h1>
+        <p className="text-muted">Loading quizzes and questions…</p>
+      </section>
+    )
+  }
+
+  if (loadState === 'error') {
+    return (
+      <section>
+        <h1 className="h2 mb-4">Admin</h1>
+        <div className="alert alert-danger" role="status">
+          Could not load admin data from the server. Check that the backend is running.
+        </div>
+      </section>
+    )
   }
 
   return (
     <section>
-      <h1 className="h2 mb-4">Admin - Local CRUD</h1>
+      <h1 className="h2 mb-4">Admin — API CRUD</h1>
+
+      {submitError && (
+        <div className="alert alert-warning mb-3" role="status">
+          {submitError}
+        </div>
+      )}
 
       <div className="row g-4">
         <div className="col-12 col-lg-5">
@@ -338,8 +451,8 @@ export function AdminPage() {
                       <div className="text-start">
                         <p className="fw-semibold mb-1">{quiz.title}</p>
                         <p className="mb-0 text-muted">
-                          {quiz.category} • {questions.filter((q) => q.quizId === quiz.id).length}{' '}
-                          questions
+                          {quiz.category} •{' '}
+                          {questions.filter((q) => q.quizId === quiz.id).length} questions
                         </p>
                       </div>
                       <div className="d-flex gap-2">
@@ -356,7 +469,7 @@ export function AdminPage() {
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-danger"
-                          onClick={() => handleDeleteQuiz(quiz.id)}
+                          onClick={() => void handleDeleteQuiz(quiz.id)}
                         >
                           Delete
                         </button>
@@ -546,7 +659,7 @@ export function AdminPage() {
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDeleteQuestion(question.id)}
+                            onClick={() => void handleDeleteQuestion(question.id)}
                           >
                             Delete
                           </button>

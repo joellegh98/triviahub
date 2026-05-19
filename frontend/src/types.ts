@@ -3,6 +3,8 @@ export interface Quiz {
   title: string
   category: string
   description: string
+  /** Present when returned from list/detail quiz API. */
+  questionCount?: number
 }
 
 export interface Question {

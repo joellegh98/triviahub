@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { gameResults, quizzes } from '../mockData.js'
-import type { ResultsLocationState } from '../types'
+import { ApiError, fetchQuiz, fetchQuizLeaderboard } from '../api'
+import type { GameResult, Quiz, ResultsLocationState } from '../types'
 
 /**
  * Computes a 0–100 score from game stats.
@@ -37,14 +38,79 @@ function computeScore({
 
 /**
  * Post-game results page. Reads game stats from React Router navigation state,
- * computes the player's score, and displays it alongside a per-quiz top-10 leaderboard.
+ * computes the player's score, and displays a per-quiz top-10 leaderboard from the API.
  */
 export function ResultsPage() {
   const { quizId } = useParams()
   const location = useLocation()
   const resultState = location.state as ResultsLocationState | null
 
-  const selectedQuiz = quizzes.find((quiz) => quiz.id === quizId)
+  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null)
+  const [apiLeaderboard, setApiLeaderboard] = useState<GameResult[]>([])
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
+  const [quizError, setQuizError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!quizId) {
+      return undefined
+    }
+
+    let cancelled = false
+
+    async function loadQuiz() {
+      setQuizError(null)
+      try {
+        const quiz = await fetchQuiz(quizId)
+        if (!cancelled) {
+          setSelectedQuiz(quiz)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message =
+            err instanceof ApiError ? err.message : 'Could not load quiz details from the server.'
+          setQuizError(message)
+          setSelectedQuiz(null)
+        }
+      }
+    }
+
+    void loadQuiz()
+    return () => {
+      cancelled = true
+    }
+  }, [quizId])
+
+  useEffect(() => {
+    if (!quizId) {
+      return undefined
+    }
+
+    let cancelled = false
+
+    async function loadLeaderboard() {
+      setLeaderboardError(null)
+      try {
+        const rows = await fetchQuizLeaderboard(quizId)
+        if (!cancelled) {
+          setApiLeaderboard(rows)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message =
+            err instanceof ApiError
+              ? err.message
+              : 'Could not load leaderboard from the server.'
+          setLeaderboardError(message)
+          setApiLeaderboard([])
+        }
+      }
+    }
+
+    void loadLeaderboard()
+    return () => {
+      cancelled = true
+    }
+  }, [quizId])
 
   const localRun =
     resultState && resultState.quizId === quizId
@@ -63,8 +129,7 @@ export function ResultsPage() {
 
   const currentScore = localRun ? computeScore(localRun) : null
 
-  const quizLeaderboard = gameResults
-    .filter((result) => result.quizId === quizId)
+  const quizLeaderboard = apiLeaderboard
     .concat(
       localRun
         ? [
@@ -84,13 +149,24 @@ export function ResultsPage() {
         <div>
           <h1 className="h2 mb-1">Results</h1>
           <p className="text-muted mb-0">
-            {selectedQuiz ? selectedQuiz.title : 'Quiz'} - local Phase 1 summary
+            {quizError
+              ? 'Quiz'
+              : selectedQuiz
+                ? selectedQuiz.title
+                : 'Quiz'}{' '}
+            — summary
           </p>
         </div>
         <Link className="btn btn-outline-secondary" to="/quizzes">
           Back to quizzes
         </Link>
       </div>
+
+      {quizError && (
+        <div className="alert alert-warning mb-3" role="status">
+          {quizError}
+        </div>
+      )}
 
       {!localRun ? (
         <div className="alert alert-warning" role="status">
@@ -147,8 +223,13 @@ export function ResultsPage() {
       <article className="card shadow-sm">
         <div className="card-body">
           <h2 className="h5 mb-3">Quiz leaderboard (Top 10)</h2>
+          {leaderboardError && (
+            <div className="alert alert-secondary mb-3" role="status">
+              {leaderboardError}
+            </div>
+          )}
           {quizLeaderboard.length === 0 ? (
-            <p className="text-muted mb-0">No local results yet for this quiz.</p>
+            <p className="text-muted mb-0">No results yet for this quiz.</p>
           ) : (
             <div className="table-responsive">
               <table className="table table-striped align-middle mb-0">
