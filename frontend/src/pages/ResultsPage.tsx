@@ -1,44 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { ApiError, fetchQuiz, fetchQuizLeaderboard } from '../api'
+import { ApiError, fetchQuiz, fetchQuizLeaderboard, saveGameResult } from '../api'
+import { computeScore } from '../utils/computeScore'
 import type { GameResult, Quiz, ResultsLocationState } from '../types'
 
 /**
- * Computes a 0–100 score from game stats.
- * Accuracy contributes 80 points, time bonus up to 20 points (capped at 180 s),
- * and each hint costs 4 points.
- */
-function computeScore({
-  correctAnswers,
-  totalQuestions,
-  durationSec,
-  hintsUsed,
-}: {
-  correctAnswers: number
-  totalQuestions: number
-  durationSec: number
-  hintsUsed: number
-}) {
-  if (!totalQuestions || totalQuestions <= 0) {
-    return 0
-  }
-
-  const accuracyRatio = correctAnswers / totalQuestions
-  const accuracyPart = accuracyRatio * 80
-
-  const maxDurationForBonus = 180
-  const boundedDuration = Math.min(Math.max(durationSec, 0), maxDurationForBonus)
-  const timePart = ((maxDurationForBonus - boundedDuration) / maxDurationForBonus) * 20
-
-  const hintPenalty = hintsUsed * 4
-  const rawScore = accuracyPart + timePart - hintPenalty
-
-  return Math.max(0, Math.min(100, Math.round(rawScore)))
-}
-
-/**
- * Post-game results page. Reads game stats from React Router navigation state,
- * computes the player's score, and displays a per-quiz top-10 leaderboard from the API.
+ * Post-game results page. Saves the run to the backend on mount, then loads the
+ * quiz top-10 leaderboard. Local stats remain visible even if saving fails.
  */
 export function ResultsPage() {
   const { quizId } = useParams()
@@ -48,19 +16,43 @@ export function ResultsPage() {
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null)
   const [apiLeaderboard, setApiLeaderboard] = useState<GameResult[]>([])
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [quizError, setQuizError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const saveStartedRef = useRef(false)
+
+  const localRun = useMemo(() => {
+    if (!resultState || !quizId || resultState.quizId !== quizId) {
+      return null
+    }
+    return {
+      correctAnswers: resultState.correctAnswers,
+      totalQuestions: resultState.totalQuestions,
+      durationSec: resultState.durationSec,
+      hintsUsed: resultState.hintsUsed,
+      attempts: resultState.attempts,
+    }
+  }, [quizId, resultState])
+
+  const currentScore = useMemo(() => {
+    if (!localRun) {
+      return null
+    }
+    return computeScore(localRun)
+  }, [localRun])
 
   useEffect(() => {
     if (!quizId) {
       return undefined
     }
 
+    const resolvedQuizId = quizId
     let cancelled = false
 
     async function loadQuiz() {
       setQuizError(null)
       try {
-        const quiz = await fetchQuiz(quizId)
+        const quiz = await fetchQuiz(resolvedQuizId)
         if (!cancelled) {
           setSelectedQuiz(quiz)
         }
@@ -80,17 +72,47 @@ export function ResultsPage() {
     }
   }, [quizId])
 
+  /** Saves the current run on mount, then fetches the quiz leaderboard from the API. */
   useEffect(() => {
-    if (!quizId) {
+    if (!quizId || !localRun || currentScore === null) {
       return undefined
     }
 
-    let cancelled = false
+    if (saveStartedRef.current) {
+      return undefined
+    }
+    saveStartedRef.current = true
 
-    async function loadLeaderboard() {
+    const resolvedQuizId = quizId
+    const run = localRun
+    const score = currentScore
+    let cancelled = false
+    const playedAt = new Date().toISOString()
+
+    async function saveAndLoadLeaderboard() {
+      setSaveError(null)
       setLeaderboardError(null)
+      setLeaderboardLoading(true)
+
       try {
-        const rows = await fetchQuizLeaderboard(quizId)
+        await saveGameResult({
+          quizId: resolvedQuizId,
+          playerName: 'You',
+          score,
+          correctAnswers: run.correctAnswers,
+          totalQuestions: run.totalQuestions,
+          durationSec: run.durationSec,
+          hintsUsed: run.hintsUsed,
+          playedAt,
+        })
+      } catch {
+        if (!cancelled) {
+          setSaveError('Your result could not be saved.')
+        }
+      }
+
+      try {
+        const rows = await fetchQuizLeaderboard(resolvedQuizId)
         if (!cancelled) {
           setApiLeaderboard(rows)
         }
@@ -103,6 +125,49 @@ export function ResultsPage() {
           setLeaderboardError(message)
           setApiLeaderboard([])
         }
+      } finally {
+        if (!cancelled) {
+          setLeaderboardLoading(false)
+        }
+      }
+    }
+
+    void saveAndLoadLeaderboard()
+    return () => {
+      cancelled = true
+    }
+  }, [quizId, localRun, currentScore])
+
+  /** Loads leaderboard only when there is no local run to save (e.g. direct navigation). */
+  useEffect(() => {
+    if (!quizId || localRun) {
+      return undefined
+    }
+
+    const resolvedQuizId = quizId
+    let cancelled = false
+
+    async function loadLeaderboard() {
+      setLeaderboardError(null)
+      setLeaderboardLoading(true)
+      try {
+        const rows = await fetchQuizLeaderboard(resolvedQuizId)
+        if (!cancelled) {
+          setApiLeaderboard(rows)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message =
+            err instanceof ApiError
+              ? err.message
+              : 'Could not load leaderboard from the server.'
+          setLeaderboardError(message)
+          setApiLeaderboard([])
+        }
+      } finally {
+        if (!cancelled) {
+          setLeaderboardLoading(false)
+        }
       }
     }
 
@@ -110,38 +175,7 @@ export function ResultsPage() {
     return () => {
       cancelled = true
     }
-  }, [quizId])
-
-  const localRun =
-    resultState && resultState.quizId === quizId
-      ? {
-          id: 'local-current-run',
-          quizId,
-          playerName: 'You',
-          correctAnswers: resultState.correctAnswers,
-          totalQuestions: resultState.totalQuestions,
-          durationSec: resultState.durationSec,
-          hintsUsed: resultState.hintsUsed,
-          attempts: resultState.attempts,
-          playedAt: new Date().toISOString(),
-        }
-      : null
-
-  const currentScore = localRun ? computeScore(localRun) : null
-
-  const quizLeaderboard = apiLeaderboard
-    .concat(
-      localRun
-        ? [
-            {
-              ...localRun,
-              score: currentScore ?? 0,
-            },
-          ]
-        : [],
-    )
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10)
+  }, [quizId, localRun])
 
   return (
     <section>
@@ -165,6 +199,12 @@ export function ResultsPage() {
       {quizError && (
         <div className="alert alert-warning mb-3" role="status">
           {quizError}
+        </div>
+      )}
+
+      {saveError && (
+        <div className="alert alert-warning mb-3" role="alert">
+          {saveError}
         </div>
       )}
 
@@ -228,7 +268,9 @@ export function ResultsPage() {
               {leaderboardError}
             </div>
           )}
-          {quizLeaderboard.length === 0 ? (
+          {leaderboardLoading ? (
+            <p className="text-muted mb-0">Loading leaderboard…</p>
+          ) : apiLeaderboard.length === 0 ? (
             <p className="text-muted mb-0">No results yet for this quiz.</p>
           ) : (
             <div className="table-responsive">
@@ -244,7 +286,7 @@ export function ResultsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {quizLeaderboard.map((result, index) => (
+                  {apiLeaderboard.map((result, index) => (
                     <tr key={result.id}>
                       <th scope="row">{index + 1}</th>
                       <td>{result.playerName}</td>

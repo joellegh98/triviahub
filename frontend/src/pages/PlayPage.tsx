@@ -1,39 +1,56 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, fetchQuiz, fetchRandomQuestionsForQuiz, type QuizListItem } from '../api'
 import { useAppData } from '../context/AppDataContext'
-import type { PlayLocationState, QuizzesLocationState } from '../types'
-import type { Question } from '../types'
+import { useGameEngine } from '../hooks/useGameEngine'
+import type { PlayLocationState, QuizzesLocationState, Question, ResultsLocationState } from '../types'
 
 /**
  * Interactive quiz play page.
- * Loads quiz metadata and shuffled questions from the API when {@code quizId} changes,
- * runs a stopwatch, tracks attempts and hints, and navigates to the results page
- * when the last question is answered.
+ * Loads quiz data from the API and delegates gameplay to {@link useGameEngine}.
  */
 export function PlayPage() {
   const { quizId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
   const { refreshQuizzes } = useAppData()
+
   const [quiz, setQuiz] = useState<QuizListItem | null>(null)
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([])
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [attempts, setAttempts] = useState(0)
-  const [correctAnswers, setCorrectAnswers] = useState(0)
-  const [hintsUsed, setHintsUsed] = useState(0)
-  const [revealedHintQuestionIds, setRevealedHintQuestionIds] = useState<
-    Record<string, boolean>
-  >({})
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-  const [isTransitioning, setIsTransitioning] = useState(false)
-  const [showQuitModal, setShowQuitModal] = useState(false)
   const [noQuestionsWarning, setNoQuestionsWarning] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const currentQuestion = quizQuestions[currentQuestionIndex]
+  const handleGameComplete = useCallback(
+    (result: ResultsLocationState) => {
+      navigate(`/results/${result.quizId}`, { state: result })
+    },
+    [navigate],
+  )
+
+  const gameActive = Boolean(quiz && quizQuestions.length > 0 && !loading && !noQuestionsWarning)
+
+  const {
+    currentQuestion,
+    progress,
+    scorePreview,
+    elapsedSeconds,
+    attempts,
+    hintsUsed,
+    selectedIndex,
+    isTransitioning,
+    isHintRevealed,
+    showQuitModal,
+    handleAnswerClick,
+    handleHintReveal,
+    openQuitModal,
+    closeQuitModal,
+  } = useGameEngine({
+    quizId,
+    questions: quizQuestions,
+    active: gameActive,
+    onComplete: handleGameComplete,
+  })
 
   useEffect(() => {
     if (!quizId) {
@@ -50,14 +67,6 @@ export function PlayPage() {
     setNoQuestionsWarning(false)
     setQuiz(null)
     setQuizQuestions([])
-    setCurrentQuestionIndex(0)
-    setAttempts(0)
-    setCorrectAnswers(0)
-    setHintsUsed(0)
-    setRevealedHintQuestionIds({})
-    setElapsedSeconds(0)
-    setSelectedIndex(null)
-    setIsTransitioning(false)
 
     async function load() {
       try {
@@ -111,81 +120,6 @@ export function PlayPage() {
     }
   }, [quizId, location.state, navigate, refreshQuizzes])
 
-  useEffect(() => {
-    if (quizQuestions.length === 0 || noQuestionsWarning) {
-      return undefined
-    }
-
-    const intervalId = window.setInterval(() => {
-      setElapsedSeconds((prevSeconds) => prevSeconds + 1)
-    }, 1000)
-
-    return () => window.clearInterval(intervalId)
-  }, [noQuestionsWarning, quizQuestions.length])
-
-  /**
-   * Reveals the hint for the current question (once per question) and increments
-   * the global hints-used counter.
-   */
-  const handleHintReveal = () => {
-    if (!currentQuestion || revealedHintQuestionIds[currentQuestion.id]) {
-      return
-    }
-
-    setRevealedHintQuestionIds((prev) => ({ ...prev, [currentQuestion.id]: true }))
-    setHintsUsed((prev) => prev + 1)
-  }
-
-  /**
-   * Advances to the next question, or navigates to the results page when the last
-   * question has been answered.
-   */
-  const moveToNextQuestion = (nextAttempts: number, nextCorrectAnswers: number) => {
-    setSelectedIndex(null)
-    setIsTransitioning(false)
-
-    if (currentQuestionIndex === quizQuestions.length - 1) {
-      navigate(`/results/${quizId}`, {
-        state: {
-          quizId,
-          attempts: nextAttempts,
-          correctAnswers: nextCorrectAnswers,
-          totalQuestions: quizQuestions.length,
-          durationSec: elapsedSeconds,
-          hintsUsed,
-        },
-      })
-      return
-    }
-
-    setCurrentQuestionIndex((prevIndex) => prevIndex + 1)
-  }
-
-  /**
-   * Handles a player clicking one of the answer option buttons.
-   */
-  const handleAnswerClick = (clickedIndex: number) => {
-    if (!currentQuestion || isTransitioning) {
-      return
-    }
-
-    const isCorrect = clickedIndex === currentQuestion.correctIndex
-    const nextAttempts = attempts + 1
-    const nextCorrectAnswers = isCorrect ? correctAnswers + 1 : correctAnswers
-
-    setSelectedIndex(clickedIndex)
-    setAttempts((prev) => prev + 1)
-    if (isCorrect) {
-      setCorrectAnswers((prev) => prev + 1)
-    }
-
-    setIsTransitioning(true)
-    window.setTimeout(
-      () => moveToNextQuestion(nextAttempts, nextCorrectAnswers),
-      700,
-    )
-  }
-
   if (loadError) {
     return (
       <section>
@@ -227,31 +161,28 @@ export function PlayPage() {
         <div>
           <h1 className="h2 mb-1">{quiz.title}</h1>
           <p className="text-muted mb-1">
-            Question {currentQuestionIndex + 1} of {quizQuestions.length}
+            Question {progress.current} of {progress.total}
           </p>
+          <p className="text-muted small mb-1">Projected score: {scorePreview}</p>
           <div
             className="progress"
             role="progressbar"
             aria-label="Quiz progress"
-            aria-valuenow={currentQuestionIndex + 1}
+            aria-valuenow={progress.current}
             aria-valuemin={1}
-            aria-valuemax={quizQuestions.length}
+            aria-valuemax={progress.total}
             style={{ height: '8px', minWidth: '200px' }}
           >
             <div
               className="progress-bar"
               style={{
-                width: `${((currentQuestionIndex + 1) / quizQuestions.length) * 100}%`,
+                width: `${progress.percent}%`,
                 transition: 'width 0.4s ease',
               }}
             />
           </div>
         </div>
-        <button
-          type="button"
-          className="btn btn-outline-danger"
-          onClick={() => setShowQuitModal(true)}
-        >
+        <button type="button" className="btn btn-outline-danger" onClick={openQuitModal}>
           Quit
         </button>
       </div>
@@ -313,14 +244,12 @@ export function PlayPage() {
             type="button"
             className="btn btn-outline-secondary"
             onClick={handleHintReveal}
-            disabled={revealedHintQuestionIds[currentQuestion.id]}
+            disabled={isHintRevealed}
           >
-            {revealedHintQuestionIds[currentQuestion.id]
-              ? 'Hint already used for this question'
-              : 'Show hint'}
+            {isHintRevealed ? 'Hint already used for this question' : 'Show hint'}
           </button>
 
-          {revealedHintQuestionIds[currentQuestion.id] && (
+          {isHintRevealed && (
             <p className="mt-3 mb-0 text-muted">
               <strong>Hint:</strong> {currentQuestion.hint}
             </p>
@@ -344,7 +273,7 @@ export function PlayPage() {
                     type="button"
                     className="btn-close"
                     aria-label="Close"
-                    onClick={() => setShowQuitModal(false)}
+                    onClick={closeQuitModal}
                   />
                 </div>
                 <div className="modal-body">
@@ -357,7 +286,7 @@ export function PlayPage() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    onClick={() => setShowQuitModal(false)}
+                    onClick={closeQuitModal}
                   >
                     Continue game
                   </button>
