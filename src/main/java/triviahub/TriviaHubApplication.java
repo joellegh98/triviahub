@@ -1,13 +1,13 @@
-package org.example.ex2;
+package triviahub;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class Ex2Application {
+public class TriviaHubApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(Ex2Application.class, args);
+        SpringApplication.run(TriviaHubApplication.class, args);
     }
 
 }

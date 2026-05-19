@@ -8,11 +8,11 @@
         <version>4.0.6</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>org.example</groupId>
-    <artifactId>ex2</artifactId>
+    <groupId>triviahub</groupId>
+    <artifactId>triviahub</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>ex2</name>
-    <description>ex2</description>
+    <name>TriviaHub</name>
+    <description>TriviaHub backend</description>
     <url/>
     <licenses>
         <license/>

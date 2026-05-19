@@ -1,10 +1,10 @@
-package org.example.ex2;
+package triviahub;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class Ex2ApplicationTests {
+class TriviaHubApplicationTests {
 
     @Test
     void contextLoads() {
