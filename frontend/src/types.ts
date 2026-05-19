@@ -30,6 +30,7 @@ export interface GameResult {
 
 export interface ResultsLocationState {
   quizId: string
+  playerName: string
   attempts: number
   correctAnswers: number
   totalQuestions: number
@@ -45,4 +46,5 @@ export interface QuizzesLocationState {
 /** Navigation state when opening play from the quiz browser. */
 export interface PlayLocationState {
   fromQuizBrowser?: boolean
+  playerName?: string
 }

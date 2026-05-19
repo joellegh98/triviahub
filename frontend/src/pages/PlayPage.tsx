@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, fetchQuiz, fetchRandomQuestionsForQuiz, type QuizListItem } from '../api'
 import { useAppData } from '../context/AppDataContext'
 import { useGameEngine } from '../hooks/useGameEngine'
 import type { PlayLocationState, QuizzesLocationState, Question, ResultsLocationState } from '../types'
+import {
+  getStoredPlayerName,
+  isValidPlayerName,
+  normalizePlayerName,
+  setStoredPlayerName,
+} from '../utils/playerName'
 
 /**
  * Interactive quiz play page.
@@ -14,12 +20,44 @@ export function PlayPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { refreshQuizzes } = useAppData()
+  const playState = location.state as PlayLocationState | null
 
   const [quiz, setQuiz] = useState<QuizListItem | null>(null)
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([])
   const [noQuestionsWarning, setNoQuestionsWarning] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [playerNameInput, setPlayerNameInput] = useState(() =>
+    normalizePlayerName(playState?.playerName ?? getStoredPlayerName()),
+  )
+  const [nameConfirmed, setNameConfirmed] = useState(() =>
+    Boolean(playState?.playerName && isValidPlayerName(playState.playerName)),
+  )
+
+  useEffect(() => {
+    const fromNav = playState?.playerName
+    if (fromNav && isValidPlayerName(fromNav)) {
+      const name = normalizePlayerName(fromNav)
+      setPlayerNameInput(name)
+      setStoredPlayerName(name)
+      setNameConfirmed(true)
+    }
+  }, [playState?.playerName])
+
+  const resolvedPlayerName = useMemo(
+    () => (nameConfirmed ? normalizePlayerName(playerNameInput) : ''),
+    [nameConfirmed, playerNameInput],
+  )
+
+  const handleConfirmName = useCallback(() => {
+    if (!isValidPlayerName(playerNameInput)) {
+      return
+    }
+    const name = normalizePlayerName(playerNameInput)
+    setStoredPlayerName(name)
+    setPlayerNameInput(name)
+    setNameConfirmed(true)
+  }, [playerNameInput])
 
   const handleGameComplete = useCallback(
     (result: ResultsLocationState) => {
@@ -28,7 +66,14 @@ export function PlayPage() {
     [navigate],
   )
 
-  const gameActive = Boolean(quiz && quizQuestions.length > 0 && !loading && !noQuestionsWarning)
+  const gameActive = Boolean(
+    quiz &&
+      quizQuestions.length > 0 &&
+      !loading &&
+      !noQuestionsWarning &&
+      nameConfirmed &&
+      resolvedPlayerName,
+  )
 
   const {
     currentQuestion,
@@ -47,6 +92,7 @@ export function PlayPage() {
     closeQuitModal,
   } = useGameEngine({
     quizId,
+    playerName: resolvedPlayerName,
     questions: quizQuestions,
     active: gameActive,
     onComplete: handleGameComplete,
@@ -90,7 +136,6 @@ export function PlayPage() {
         if (!cancelled) {
           if (err instanceof ApiError && err.status === 404) {
             refreshQuizzes()
-            const playState = location.state as PlayLocationState | null
             const toastState: QuizzesLocationState = {
               toastMessage: playState?.fromQuizBrowser
                 ? 'This quiz was deleted and is no longer available.'
@@ -147,7 +192,61 @@ export function PlayPage() {
     )
   }
 
-  if (loading || !quiz || !currentQuestion) {
+  if (loading || !quiz) {
+    return (
+      <section>
+        <p className="text-muted mb-0">Loading game...</p>
+      </section>
+    )
+  }
+
+  if (!nameConfirmed) {
+    return (
+      <section>
+        <h1 className="h2 mb-3">{quiz.title}</h1>
+        <article className="card shadow-sm" style={{ maxWidth: '28rem' }}>
+          <div className="card-body">
+            <h2 className="h5 mb-3">Enter your name</h2>
+            <p className="text-muted small">
+              Your name is shown on the leaderboard for this quiz.
+            </p>
+            <label htmlFor="playPlayerName" className="form-label">
+              Your name
+            </label>
+            <input
+              id="playPlayerName"
+              type="text"
+              className="form-control mb-3"
+              placeholder="e.g. Noa, Joelle"
+              value={playerNameInput}
+              onChange={(event) => setPlayerNameInput(event.target.value)}
+              maxLength={50}
+              autoComplete="nickname"
+            />
+            <div className="d-flex gap-2">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!isValidPlayerName(playerNameInput)}
+                onClick={handleConfirmName}
+              >
+                Start quiz
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => navigate('/quizzes')}
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+    )
+  }
+
+  if (!currentQuestion) {
     return (
       <section>
         <p className="text-muted mb-0">Loading game...</p>
@@ -160,6 +259,7 @@ export function PlayPage() {
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <div>
           <h1 className="h2 mb-1">{quiz.title}</h1>
+          <p className="text-muted small mb-1">Playing as {resolvedPlayerName}</p>
           <p className="text-muted mb-1">
             Question {progress.current} of {progress.total}
           </p>

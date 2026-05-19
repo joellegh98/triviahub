@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { ApiError, fetchQuiz, fetchQuizLeaderboard, saveGameResult } from '../api'
 import { computeScore } from '../utils/computeScore'
+import { isValidPlayerName, normalizePlayerName } from '../utils/playerName'
 import type { GameResult, Quiz, ResultsLocationState } from '../types'
 
 /**
@@ -19,13 +20,15 @@ export function ResultsPage() {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [quizError, setQuizError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const saveStartedRef = useRef(false)
+  /** Prevents duplicate POST in React Strict Mode while still allowing a remount to fetch. */
+  const savedRunKeyRef = useRef<string | null>(null)
 
   const localRun = useMemo(() => {
     if (!resultState || !quizId || resultState.quizId !== quizId) {
       return null
     }
     return {
+      playerName: normalizePlayerName(resultState.playerName),
       correctAnswers: resultState.correctAnswers,
       totalQuestions: resultState.totalQuestions,
       durationSec: resultState.durationSec,
@@ -74,40 +77,50 @@ export function ResultsPage() {
 
   /** Saves the current run on mount, then fetches the quiz leaderboard from the API. */
   useEffect(() => {
-    if (!quizId || !localRun || currentScore === null) {
+    if (!quizId || !localRun || currentScore === null || !isValidPlayerName(localRun.playerName)) {
       return undefined
     }
-
-    if (saveStartedRef.current) {
-      return undefined
-    }
-    saveStartedRef.current = true
 
     const resolvedQuizId = quizId
     const run = localRun
     const score = currentScore
+    const saveKey = [
+      resolvedQuizId,
+      run.playerName,
+      score,
+      run.correctAnswers,
+      run.totalQuestions,
+      run.durationSec,
+      run.hintsUsed,
+      run.attempts,
+    ].join('|')
+    const skipSave = savedRunKeyRef.current === saveKey
     let cancelled = false
     const playedAt = new Date().toISOString()
 
     async function saveAndLoadLeaderboard() {
-      setSaveError(null)
       setLeaderboardError(null)
       setLeaderboardLoading(true)
 
-      try {
-        await saveGameResult({
-          quizId: resolvedQuizId,
-          playerName: 'You',
-          score,
-          correctAnswers: run.correctAnswers,
-          totalQuestions: run.totalQuestions,
-          durationSec: run.durationSec,
-          hintsUsed: run.hintsUsed,
-          playedAt,
-        })
-      } catch {
-        if (!cancelled) {
-          setSaveError('Your result could not be saved.')
+      if (!skipSave) {
+        savedRunKeyRef.current = saveKey
+        setSaveError(null)
+        try {
+          await saveGameResult({
+            quizId: resolvedQuizId,
+            playerName: run.playerName,
+            score,
+            correctAnswers: run.correctAnswers,
+            totalQuestions: run.totalQuestions,
+            durationSec: run.durationSec,
+            hintsUsed: run.hintsUsed,
+            playedAt,
+          })
+        } catch {
+          savedRunKeyRef.current = null
+          if (!cancelled) {
+            setSaveError('Your result could not be saved.')
+          }
         }
       }
 
@@ -126,9 +139,7 @@ export function ResultsPage() {
           setApiLeaderboard([])
         }
       } finally {
-        if (!cancelled) {
-          setLeaderboardLoading(false)
-        }
+        setLeaderboardLoading(false)
       }
     }
 
@@ -165,9 +176,7 @@ export function ResultsPage() {
           setApiLeaderboard([])
         }
       } finally {
-        if (!cancelled) {
-          setLeaderboardLoading(false)
-        }
+        setLeaderboardLoading(false)
       }
     }
 
@@ -208,13 +217,23 @@ export function ResultsPage() {
         </div>
       )}
 
+      {localRun && !isValidPlayerName(localRun.playerName) && (
+        <div className="alert alert-warning mb-3" role="alert">
+          Player name is missing; your result could not be saved to the leaderboard.
+        </div>
+      )}
+
       {!localRun ? (
         <div className="alert alert-warning" role="status">
           No game result found in navigation state. Start a quiz from the browser to
           see detailed results.
         </div>
       ) : (
-        <div className="row g-3 mb-4">
+        <>
+          <p className="text-muted mb-3">
+            Player: <strong>{localRun.playerName}</strong>
+          </p>
+          <div className="row g-3 mb-4">
           <div className="col-12 col-md-4">
             <div className="card h-100">
               <div className="card-body text-center">
@@ -258,6 +277,7 @@ export function ResultsPage() {
             </div>
           </div>
         </div>
+        </>
       )}
 
       <article className="card shadow-sm">

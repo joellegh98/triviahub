@@ -92,6 +92,7 @@ function gameEngineReducer(
 
 export type UseGameEngineOptions = {
   quizId: string | undefined
+  playerName: string
   /** Shuffled questions from the API; when this list changes, the session resets. */
   questions: Question[]
   /** When false, the stopwatch does not run. */
@@ -106,6 +107,7 @@ export type UseGameEngineOptions = {
  */
 export function useGameEngine({
   quizId,
+  playerName,
   questions,
   active,
   onComplete,
@@ -190,6 +192,7 @@ export function useGameEngine({
         if (isLastQuestion) {
           onComplete({
             quizId,
+            playerName,
             attempts: nextAttempts,
             correctAnswers: nextCorrectAnswers,
             totalQuestions: latest.questions.length,
@@ -201,7 +204,7 @@ export function useGameEngine({
         dispatch({ type: 'ADVANCE' })
       }, ANSWER_FEEDBACK_MS)
     },
-    [quizId, onComplete],
+    [quizId, playerName, onComplete],
   )
 
   /**

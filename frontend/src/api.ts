@@ -102,6 +102,24 @@ export async function createQuiz(payload: {
 }
 
 /**
+ * PUT /quizzes/:id — update quiz.
+ */
+export async function updateQuiz(
+  quizId: string,
+  payload: {
+    title: string
+    category: string
+    description: string
+  },
+): Promise<QuizListItem> {
+  return requestJson<QuizListItem>(`/quizzes/${encodeURIComponent(quizId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
  * DELETE /quizzes/:id — delete quiz and its questions.
  */
 export async function deleteQuiz(quizId: string): Promise<void> {

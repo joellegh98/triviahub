@@ -9,6 +9,8 @@ import triviahub.exception.DuplicateResourceException;
 import triviahub.exception.ResourceNotFoundException;
 import triviahub.exception.ValidationException;
 
+import java.util.Map;
+
 /**
  * Maps domain exceptions to HTTP status codes and JSON error bodies.
  */
@@ -28,7 +30,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleConflict(DuplicateResourceException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                new ErrorResponse(ex.getMessage(), Map.of("title", ex.getMessage()))
+        );
     }
 
     /**

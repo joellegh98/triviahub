@@ -9,6 +9,7 @@ import {
   fetchQuizzes,
   getFieldErrorsFromApiError,
   updateQuestion,
+  updateQuiz,
   type QuizListItem,
 } from '../api'
 import { useAppData } from '../context/AppDataContext'
@@ -33,6 +34,13 @@ type QuestionFormErrors = Partial<
   Record<'quizId' | 'text' | 'correctIndex', string> & { options: string[] }
 >
 
+function hasQuestionFormErrors(errors: QuestionFormErrors): boolean {
+  if (errors.quizId || errors.text || errors.correctIndex) {
+    return true
+  }
+  return Boolean(errors.options?.some((message) => message))
+}
+
 /**
  * Admin CRUD page backed by the Spring API.
  * Loads quizzes and questions on mount and whenever {@code dataVersion} increments.
@@ -48,11 +56,14 @@ export function AdminPage() {
 
   const [quizForm, setQuizForm] = useState(emptyQuizForm)
   const [quizErrors, setQuizErrors] = useState<QuizFormErrors>({})
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null)
 
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm)
   const [questionErrors, setQuestionErrors] = useState<QuestionFormErrors>({})
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [quizToDelete, setQuizToDelete] = useState<QuizListItem | null>(null)
+  const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null)
   const questionsSectionRef = useRef<HTMLElement>(null)
   const questionFormRef = useRef<HTMLFormElement>(null)
 
@@ -114,6 +125,26 @@ export function AdminPage() {
     setDataVersion((v) => v + 1)
   }
 
+  const applyQuizApiError = (err: unknown, fallbackMessage: string) => {
+    if (!(err instanceof ApiError)) {
+      setSubmitError(fallbackMessage)
+      return
+    }
+    const fields = getFieldErrorsFromApiError(err)
+    if (fields?.title || fields?.category) {
+      setQuizErrors({
+        title: fields.title,
+        category: fields.category,
+      })
+      return
+    }
+    if (err.status === 409) {
+      setQuizErrors({ title: err.message })
+      return
+    }
+    setSubmitError(err.message)
+  }
+
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId) || null
   const selectedQuizQuestions = useMemo(
     () => questions.filter((question) => question.quizId === selectedQuizId),
@@ -133,7 +164,9 @@ export function AdminPage() {
       errors.title = 'Title is required.'
     } else {
       const hasDuplicate = quizzes.some(
-        (quiz) => quiz.title.trim().toLowerCase() === normalizedTitle,
+        (quiz) =>
+          quiz.id !== editingQuizId &&
+          quiz.title.trim().toLowerCase() === normalizedTitle,
       )
       if (hasDuplicate) {
         errors.title = 'Quiz title must be unique (case-insensitive).'
@@ -163,41 +196,54 @@ export function AdminPage() {
       return
     }
 
+    const payload = {
+      title: quizForm.title.trim(),
+      category: quizForm.category.trim().toLowerCase(),
+      description: quizForm.description.trim() || 'Custom quiz created in admin.',
+    }
+
     try {
-      await createQuiz({
-        title: quizForm.title.trim(),
-        category: quizForm.category.trim().toLowerCase(),
-        description:
-          quizForm.description.trim() || 'Custom quiz created in admin.',
-      })
+      if (editingQuizId) {
+        await updateQuiz(editingQuizId, payload)
+      } else {
+        await createQuiz(payload)
+      }
       setQuizForm(emptyQuizForm)
       setQuizErrors({})
+      setEditingQuizId(null)
       refresh()
       refreshQuizzes()
     } catch (err) {
-      if (err instanceof ApiError) {
-        const fields = getFieldErrorsFromApiError(err)
-        if (fields) {
-          setQuizErrors({
-            title: fields.title,
-            category: fields.category,
-          })
-        } else if (err.status === 409) {
-          setQuizErrors({ title: err.message })
-        } else {
-          setSubmitError(err.message)
-        }
-      } else {
-        setSubmitError('Could not create quiz.')
-      }
+      applyQuizApiError(err, editingQuizId ? 'Could not update quiz.' : 'Could not create quiz.')
     }
+  }
+
+  const startEditingQuiz = (quiz: QuizListItem) => {
+    setEditingQuizId(quiz.id)
+    setQuizForm({
+      title: quiz.title,
+      category: quiz.category,
+      description: quiz.description,
+    })
+    setQuizErrors({})
+    setSubmitError(null)
+  }
+
+  const cancelQuizEdit = () => {
+    setEditingQuizId(null)
+    setQuizForm(emptyQuizForm)
+    setQuizErrors({})
   }
 
   /**
    * Deletes a quiz and all its questions via the API.
    * @param {string} quizIdToDelete
    */
-  const handleDeleteQuiz = async (quizIdToDelete: string) => {
+  const confirmDeleteQuiz = async () => {
+    if (!quizToDelete) {
+      return
+    }
+    const quizIdToDelete = quizToDelete.id
     setSubmitError(null)
     try {
       await deleteQuiz(quizIdToDelete)
@@ -206,6 +252,10 @@ export function AdminPage() {
         setQuestionForm(emptyQuestionForm)
         setQuestionErrors({})
       }
+      if (editingQuizId === quizIdToDelete) {
+        cancelQuizEdit()
+      }
+      setQuizToDelete(null)
       refresh()
       refreshQuizzes()
     } catch (err) {
@@ -260,7 +310,7 @@ export function AdminPage() {
     const errors = validateQuestionForm()
     setQuestionErrors(errors)
 
-    if (Object.keys(errors).length > 0) {
+    if (hasQuestionFormErrors(errors)) {
       return
     }
 
@@ -323,7 +373,11 @@ export function AdminPage() {
    * Removes a question via the API.
    * @param {string} questionId
    */
-  const handleDeleteQuestion = async (questionId: string) => {
+  const confirmDeleteQuestion = async () => {
+    if (!questionToDelete) {
+      return
+    }
+    const questionId = questionToDelete.id
     setSubmitError(null)
     try {
       await deleteQuestion(questionId)
@@ -332,6 +386,7 @@ export function AdminPage() {
         setQuestionForm(emptyQuestionForm)
         setQuestionErrors({})
       }
+      setQuestionToDelete(null)
       refresh()
       refreshQuizzes()
     } catch (err) {
@@ -359,6 +414,9 @@ export function AdminPage() {
         <div className="alert alert-danger" role="status">
           Could not load admin data from the server. Check that the backend is running.
         </div>
+        <button type="button" className="btn btn-outline-primary mt-3" onClick={refresh}>
+          Retry
+        </button>
       </section>
     )
   }
@@ -377,7 +435,7 @@ export function AdminPage() {
         <div className="col-12 col-lg-5">
           <article className="card h-100 shadow-sm">
             <div className="card-body">
-              <h2 className="h5 mb-3">Add Quiz</h2>
+              <h2 className="h5 mb-3">{editingQuizId ? 'Edit Quiz' : 'Add Quiz'}</h2>
               <form onSubmit={handleQuizSubmit} noValidate>
                 <div className="mb-3">
                   <label className="form-label" htmlFor="quizTitle">
@@ -433,9 +491,20 @@ export function AdminPage() {
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary">
-                  Add quiz
-                </button>
+                <div className="d-flex gap-2">
+                  <button type="submit" className="btn btn-primary">
+                    {editingQuizId ? 'Update quiz' : 'Add quiz'}
+                  </button>
+                  {editingQuizId && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={cancelQuizEdit}
+                    >
+                      Cancel edit
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
           </article>
@@ -461,7 +530,7 @@ export function AdminPage() {
                           {questions.filter((q) => q.quizId === quiz.id).length} questions
                         </p>
                       </div>
-                      <div className="d-flex gap-2">
+                      <div className="d-flex flex-wrap gap-2">
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-secondary"
@@ -474,8 +543,15 @@ export function AdminPage() {
                         </button>
                         <button
                           type="button"
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => startEditingQuiz(quiz)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
                           className="btn btn-sm btn-outline-danger"
-                          onClick={() => void handleDeleteQuiz(quiz.id)}
+                          onClick={() => setQuizToDelete(quiz)}
                         >
                           Delete
                         </button>
@@ -511,6 +587,11 @@ export function AdminPage() {
               ))}
             </select>
           </div>
+          {questionErrors.quizId && (
+            <div className="alert alert-warning py-2 mb-3" role="status">
+              {questionErrors.quizId}
+            </div>
+          )}
 
           {!selectedQuiz ? (
             <div className="alert alert-secondary mb-0" role="status">
@@ -665,7 +746,7 @@ export function AdminPage() {
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-danger"
-                            onClick={() => void handleDeleteQuestion(question.id)}
+                            onClick={() => setQuestionToDelete(question)}
                           >
                             Delete
                           </button>
@@ -679,6 +760,102 @@ export function AdminPage() {
           )}
         </div>
       </article>
+
+      {quizToDelete && (
+        <>
+          <div
+            className="modal fade show d-block"
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h2 className="modal-title fs-5 mb-0">Delete quiz?</h2>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    aria-label="Close"
+                    onClick={() => setQuizToDelete(null)}
+                  />
+                </div>
+                <div className="modal-body">
+                  <p className="mb-0">
+                    Delete <strong>{quizToDelete.title}</strong> and all of its questions?
+                    This cannot be undone.
+                  </p>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setQuizToDelete(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => void confirmDeleteQuiz()}
+                  >
+                    Delete quiz
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show" />
+        </>
+      )}
+
+      {questionToDelete && (
+        <>
+          <div
+            className="modal fade show d-block"
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h2 className="modal-title fs-5 mb-0">Delete question?</h2>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    aria-label="Close"
+                    onClick={() => setQuestionToDelete(null)}
+                  />
+                </div>
+                <div className="modal-body">
+                  <p className="mb-0">
+                    Remove this question from the quiz? This cannot be undone.
+                  </p>
+                  <p className="mb-0 mt-2 text-muted small">{questionToDelete.text}</p>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setQuestionToDelete(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => void confirmDeleteQuestion()}
+                  >
+                    Delete question
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show" />
+        </>
+      )}
     </section>
   )
 }

@@ -60,7 +60,8 @@ class ApiControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").exists());
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.errors.title").exists());
     }
 
     @Test
@@ -136,6 +137,40 @@ class ApiControllerTest {
         mockMvc.perform(get("/api/quizzes/" + quizId + "/leaderboard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    void deleteQuizRemovesItsQuestions() throws Exception {
+        String createBody = """
+                {"title":"temp quiz","category":"science","description":"cascade test"}
+                """;
+        String response = mockMvc.perform(post("/api/quizzes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String quizId = response.replaceAll(".*\"id\"\\s*:\\s*\"([^\"]+)\".*", "$1");
+
+        String questionBody = """
+                {"text":"Sample?","options":["a","b","c","d"],"correctIndex":1,"hint":"hint"}
+                """;
+        mockMvc.perform(post("/api/quizzes/" + quizId + "/questions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(questionBody))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/quizzes/" + quizId + "/questions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
+        mockMvc.perform(delete("/api/quizzes/" + quizId))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/quizzes/" + quizId + "/questions"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

@@ -3,6 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppToast } from '../components/AppToast'
 import { useAppData } from '../context/AppDataContext'
 import type { PlayLocationState, QuizzesLocationState } from '../types'
+import {
+  getStoredPlayerName,
+  isValidPlayerName,
+  normalizePlayerName,
+  setStoredPlayerName,
+} from '../utils/playerName'
 
 /**
  * Quiz browser page. Refetches quizzes/categories from the API on mount and on
@@ -16,6 +22,7 @@ export function QuizzesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [toastMessage, setToastMessage] = useState('')
   const [toastVisible, setToastVisible] = useState(false)
+  const [playerName, setPlayerName] = useState(getStoredPlayerName)
 
   /** Refetch quiz list (and derived categories) whenever this page is opened. */
   useEffect(() => {
@@ -51,7 +58,19 @@ export function QuizzesPage() {
     [quizzes, selectedCategory, normalizedSearchTerm],
   )
 
-  const playDisabled = serverUnavailable || loading
+  const trimmedPlayerName = normalizePlayerName(playerName)
+  const playerNameValid = isValidPlayerName(playerName)
+  const playDisabled = serverUnavailable || loading || !playerNameValid
+
+  const handlePlayerNameChange = useCallback(
+    (value: string) => {
+      setPlayerName(value)
+      if (isValidPlayerName(value)) {
+        setStoredPlayerName(value)
+      }
+    },
+    [],
+  )
 
   return (
     <section>
@@ -78,6 +97,31 @@ export function QuizzesPage() {
         <p className="text-muted">Loading quizzes…</p>
       ) : (
         <>
+          <div className="row g-3 mb-3">
+            <div className="col-12 col-lg-6">
+              <label htmlFor="playerName" className="form-label">
+                Your name
+              </label>
+              <input
+                id="playerName"
+                type="text"
+                className="form-control"
+                placeholder="e.g. Noa, Joelle"
+                value={playerName}
+                onChange={(event) => handlePlayerNameChange(event.target.value)}
+                maxLength={50}
+                autoComplete="nickname"
+              />
+              {!playerNameValid && playerName.length > 0 ? (
+                <div className="form-text text-danger">
+                  Enter a name (1–50 characters) before playing.
+                </div>
+              ) : !playerNameValid ? (
+                <div className="form-text">Required to appear on the leaderboard.</div>
+              ) : null}
+            </div>
+          </div>
+
           <div className="row g-3 mb-4">
             <div className="col-12 col-md-4">
               <label htmlFor="categoryFilter" className="form-label">
@@ -145,7 +189,9 @@ export function QuizzesPage() {
                             title={
                               serverUnavailable
                                 ? 'Server unavailable'
-                                : 'Loading quizzes'
+                                : !playerNameValid
+                                  ? 'Enter your name first'
+                                  : 'Loading quizzes'
                             }
                           >
                             Play
@@ -154,7 +200,12 @@ export function QuizzesPage() {
                           <Link
                             className="btn btn-primary w-100"
                             to={`/play/${quiz.id}`}
-                            state={{ fromQuizBrowser: true } satisfies PlayLocationState}
+                            state={
+                              {
+                                fromQuizBrowser: true,
+                                playerName: trimmedPlayerName,
+                              } satisfies PlayLocationState
+                            }
                           >
                             Play
                           </Link>
