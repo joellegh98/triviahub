@@ -23,6 +23,7 @@ export function QuizzesPage() {
   const [toastMessage, setToastMessage] = useState('')
   const [toastVisible, setToastVisible] = useState(false)
   const [playerName, setPlayerName] = useState(getStoredPlayerName)
+  const [nameTouched, setNameTouched] = useState(false)
 
   /** Refetch quiz list (and derived categories) whenever this page is opened. */
   useEffect(() => {
@@ -105,19 +106,22 @@ export function QuizzesPage() {
               <input
                 id="playerName"
                 type="text"
-                className="form-control"
+                className={`form-control${!playerNameValid && (nameTouched || playerName.length > 0) ? ' is-invalid' : ''}`}
                 placeholder="e.g. Noa, Joelle"
                 value={playerName}
                 onChange={(event) => handlePlayerNameChange(event.target.value)}
+                onBlur={() => setNameTouched(true)}
                 maxLength={50}
                 autoComplete="nickname"
               />
-              {!playerNameValid && playerName.length > 0 ? (
-                <div className="form-text text-danger">
+              {!playerNameValid && playerName.length === 0 && nameTouched ? (
+                <div className="invalid-feedback d-block">
+                  You need to fill your name.
+                </div>
+              ) : !playerNameValid && playerName.length > 0 ? (
+                <div className="invalid-feedback d-block">
                   Enter a name (1–50 characters) before playing.
                 </div>
-              ) : !playerNameValid ? (
-                <div className="form-text">Required to appear on the leaderboard.</div>
               ) : null}
             </div>
           </div>
@@ -186,13 +190,8 @@ export function QuizzesPage() {
                           <span
                             className="btn btn-primary w-100 disabled"
                             aria-disabled="true"
-                            title={
-                              serverUnavailable
-                                ? 'Server unavailable'
-                                : !playerNameValid
-                                  ? 'Enter your name first'
-                                  : 'Loading quizzes'
-                            }
+                            style={{ cursor: !playerNameValid ? 'pointer' : 'not-allowed' }}
+                            onClick={() => { if (!playerNameValid) { setNameTouched(true); document.getElementById('playerName')?.focus() } }}
                           >
                             Play
                           </span>

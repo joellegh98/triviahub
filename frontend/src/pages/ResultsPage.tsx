@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { ApiError, fetchQuiz, fetchQuizLeaderboard, saveGameResult } from '../api'
 import { computeScore } from '../utils/computeScore'
 import { isValidPlayerName, normalizePlayerName } from '../utils/playerName'
 import type { GameResult, Quiz, ResultsLocationState } from '../types'
 
-/**
- * Post-game results page. Saves the run to the backend on mount, then loads the
- * quiz top-10 leaderboard. Local stats remain visible even if saving fails.
- */
+// In React Strict Mode (dev), effects run twice. The second run skips the save
+// (sessionStorage guard) but must wait for the first run's save to finish before
+// fetching the leaderboard, or the result won't appear yet.
+let activeSavePromise: Promise<void> | null = null
+
 export function ResultsPage() {
   const { quizId } = useParams()
   const location = useLocation()
@@ -20,8 +21,6 @@ export function ResultsPage() {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [quizError, setQuizError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  /** Prevents duplicate POST in React Strict Mode while still allowing a remount to fetch. */
-  const savedRunKeyRef = useRef<string | null>(null)
 
   const localRun = useMemo(() => {
     if (!resultState || !quizId || resultState.quizId !== quizId) {
@@ -94,7 +93,7 @@ export function ResultsPage() {
       run.hintsUsed,
       run.attempts,
     ].join('|')
-    const skipSave = savedRunKeyRef.current === saveKey
+    const skipSave = sessionStorage.getItem('savedRunKey') === saveKey
     let cancelled = false
     const playedAt = new Date().toISOString()
 
@@ -103,8 +102,10 @@ export function ResultsPage() {
       setLeaderboardLoading(true)
 
       if (!skipSave) {
-        savedRunKeyRef.current = saveKey
+        sessionStorage.setItem('savedRunKey', saveKey)
         setSaveError(null)
+        let resolveSave!: () => void
+        activeSavePromise = new Promise<void>((r) => { resolveSave = r })
         try {
           await saveGameResult({
             quizId: resolvedQuizId,
@@ -117,11 +118,16 @@ export function ResultsPage() {
             playedAt,
           })
         } catch {
-          savedRunKeyRef.current = null
+          sessionStorage.removeItem('savedRunKey')
           if (!cancelled) {
             setSaveError('Your result could not be saved.')
           }
+        } finally {
+          resolveSave()
+          activeSavePromise = null
         }
+      } else if (activeSavePromise) {
+        await activeSavePromise
       }
 
       try {
