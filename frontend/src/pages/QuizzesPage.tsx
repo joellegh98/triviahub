@@ -1,62 +1,62 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ApiError, fetchQuizzes, type QuizListItem } from '../api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { AppToast } from '../components/AppToast'
+import { useAppData } from '../context/AppDataContext'
+import type { PlayLocationState, QuizzesLocationState } from '../types'
 
 /**
- * Quiz browser page. Lets users filter quizzes by category and search by title,
- * then navigate to the play page for a chosen quiz. Quizzes load from the API on mount.
+ * Quiz browser page. Refetches quizzes/categories from the API on mount and on
+ * explicit refresh. Disables Play when the server is unavailable.
  */
 export function QuizzesPage() {
-  const [quizzes, setQuizzes] = useState<QuizListItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { quizzes, categories, loading, serverUnavailable, refreshQuizzes } = useAppData()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastVisible, setToastVisible] = useState(false)
+
+  /** Refetch quiz list (and derived categories) whenever this page is opened. */
+  useEffect(() => {
+    refreshQuizzes()
+  }, [refreshQuizzes])
 
   useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const list = await fetchQuizzes()
-        if (!cancelled) {
-          setQuizzes(list)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const message =
-            err instanceof ApiError ? err.message : 'Could not load quizzes from the server.'
-          setError(message)
-          setQuizzes([])
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
+    const state = location.state as QuizzesLocationState | null
+    if (state?.toastMessage) {
+      setToastMessage(state.toastMessage)
+      setToastVisible(true)
+      navigate(location.pathname, { replace: true, state: {} })
     }
+  }, [location.pathname, location.state, navigate])
 
-    void load()
-    return () => {
-      cancelled = true
-    }
+  const handleToastClose = useCallback(() => {
+    setToastVisible(false)
+    setToastMessage('')
   }, [])
 
-  const categories = ['all', ...new Set(quizzes.map((quiz) => quiz.category))]
+  const categoryOptions = useMemo(() => ['all', ...categories], [categories])
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase()
 
-  const filteredQuizzes = quizzes.filter((quiz) => {
-    const matchesCategory =
-      selectedCategory === 'all' || quiz.category === selectedCategory
-    const matchesTitle = quiz.title.toLowerCase().includes(normalizedSearchTerm)
-    return matchesCategory && matchesTitle
-  })
+  const filteredQuizzes = useMemo(
+    () =>
+      quizzes.filter((quiz) => {
+        const matchesCategory =
+          selectedCategory === 'all' || quiz.category === selectedCategory
+        const matchesTitle = quiz.title.toLowerCase().includes(normalizedSearchTerm)
+        return matchesCategory && matchesTitle
+      }),
+    [quizzes, selectedCategory, normalizedSearchTerm],
+  )
+
+  const playDisabled = serverUnavailable || loading
 
   return (
     <section>
+      <AppToast message={toastMessage} show={toastVisible} onClose={handleToastClose} />
+
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
         <div>
           <h1 className="h2 mb-1">Quiz Browser</h1>
@@ -64,15 +64,17 @@ export function QuizzesPage() {
             Filter by category and search quizzes by title.
           </p>
         </div>
+        <button
+          type="button"
+          className="btn btn-outline-primary"
+          onClick={() => refreshQuizzes()}
+          disabled={loading}
+        >
+          {loading ? 'Refreshing…' : 'Refresh quizzes'}
+        </button>
       </div>
 
-      {error && (
-        <div className="alert alert-warning mb-3" role="status">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
+      {loading && quizzes.length === 0 ? (
         <p className="text-muted">Loading quizzes…</p>
       ) : (
         <>
@@ -86,8 +88,9 @@ export function QuizzesPage() {
                 className="form-select"
                 value={selectedCategory}
                 onChange={(event) => setSelectedCategory(event.target.value)}
+                disabled={loading}
               >
-                {categories.map((category) => (
+                {categoryOptions.map((category) => (
                   <option key={category} value={category}>
                     {category === 'all'
                       ? 'All categories'
@@ -135,9 +138,27 @@ export function QuizzesPage() {
                       </p>
                       <p className="text-muted small mb-4">{quiz.description}</p>
                       <div className="mt-auto">
-                        <Link className="btn btn-primary w-100" to={`/play/${quiz.id}`}>
-                          Play
-                        </Link>
+                        {playDisabled ? (
+                          <span
+                            className="btn btn-primary w-100 disabled"
+                            aria-disabled="true"
+                            title={
+                              serverUnavailable
+                                ? 'Server unavailable'
+                                : 'Loading quizzes'
+                            }
+                          >
+                            Play
+                          </span>
+                        ) : (
+                          <Link
+                            className="btn btn-primary w-100"
+                            to={`/play/${quiz.id}`}
+                            state={{ fromQuizBrowser: true } satisfies PlayLocationState}
+                          >
+                            Play
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </article>

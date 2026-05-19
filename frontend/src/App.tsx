@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { AppDataProvider } from './context/AppDataContext'
 import { AboutPage } from './pages/AboutPage'
 import { AdminPage } from './pages/AdminPage'
 import { HomePage } from './pages/HomePage'
@@ -16,18 +17,20 @@ import { ResultsPage } from './pages/ResultsPage'
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/quizzes" element={<QuizzesPage />} />
-          <Route path="/play/:quizId" element={<PlayPage />} />
-          <Route path="/results/:quizId" element={<ResultsPage />} />
-          <Route path="/leaderboard" element={<LeaderboardPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+      <AppDataProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/quizzes" element={<QuizzesPage />} />
+            <Route path="/play/:quizId" element={<PlayPage />} />
+            <Route path="/results/:quizId" element={<ResultsPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </AppDataProvider>
     </BrowserRouter>
   )
 }

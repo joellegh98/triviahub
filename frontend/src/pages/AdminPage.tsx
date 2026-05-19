@@ -11,6 +11,7 @@ import {
   updateQuestion,
   type QuizListItem,
 } from '../api'
+import { useAppData } from '../context/AppDataContext'
 import type { Question } from '../types'
 
 const emptyQuizForm = {
@@ -38,6 +39,7 @@ type QuestionFormErrors = Partial<
  * @returns {JSX.Element}
  */
 export function AdminPage() {
+  const { refreshQuizzes } = useAppData()
   const [dataVersion, setDataVersion] = useState(0)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [quizzes, setQuizzes] = useState<QuizListItem[]>([])
@@ -171,6 +173,7 @@ export function AdminPage() {
       setQuizForm(emptyQuizForm)
       setQuizErrors({})
       refresh()
+      refreshQuizzes()
     } catch (err) {
       if (err instanceof ApiError) {
         const fields = getFieldErrorsFromApiError(err)
@@ -204,6 +207,7 @@ export function AdminPage() {
         setQuestionErrors({})
       }
       refresh()
+      refreshQuizzes()
     } catch (err) {
       if (err instanceof ApiError) {
         setSubmitError(err.message)
@@ -277,6 +281,7 @@ export function AdminPage() {
       setQuestionForm(emptyQuestionForm)
       setQuestionErrors({})
       refresh()
+      refreshQuizzes()
     } catch (err) {
       if (err instanceof ApiError) {
         const fields = getFieldErrorsFromApiError(err)
@@ -328,6 +333,7 @@ export function AdminPage() {
         setQuestionErrors({})
       }
       refresh()
+      refreshQuizzes()
     } catch (err) {
       if (err instanceof ApiError) {
         setSubmitError(err.message)

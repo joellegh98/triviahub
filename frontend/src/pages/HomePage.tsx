@@ -1,61 +1,64 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ApiError, fetchGlobalLeaderboard, fetchQuizzes } from '../api'
+import { ApiError, fetchGlobalLeaderboard } from '../api'
+import { useAppData } from '../context/AppDataContext'
 
 /**
  * Landing page. Displays summary statistics (total quizzes, questions, games played)
- * and quick-navigation buttons to the quiz browser and leaderboard.
- * Stats are loaded from the backend via {@link fetchQuizzes} and {@link fetchGlobalLeaderboard}.
+ * and quick-navigation buttons. Quiz totals come from {@link useAppData}; leaderboard
+ * length is loaded in {@code useEffect}.
  */
 export function HomePage() {
-  const [totalQuizzes, setTotalQuizzes] = useState(0)
-  const [totalQuestions, setTotalQuestions] = useState(0)
+  const { quizzes, loading: quizzesLoading } = useAppData()
   const [totalGamesPlayed, setTotalGamesPlayed] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true)
+
+  const { totalQuizzes, totalQuestions } = useMemo(() => {
+    const questionSum = quizzes.reduce(
+      (sum, quiz) => sum + (quiz.questionCount ?? 0),
+      0,
+    )
+    return {
+      totalQuizzes: quizzes.length,
+      totalQuestions: questionSum,
+    }
+  }, [quizzes])
 
   useEffect(() => {
     let cancelled = false
 
-    async function load() {
-      setLoading(true)
-      setError(null)
+    async function loadLeaderboard() {
+      setLeaderboardLoading(true)
+      setLeaderboardError(null)
       try {
-        const [quizList, leaderboard] = await Promise.all([
-          fetchQuizzes(),
-          fetchGlobalLeaderboard(),
-        ])
-        if (cancelled) {
-          return
+        const leaderboard = await fetchGlobalLeaderboard()
+        if (!cancelled) {
+          setTotalGamesPlayed(leaderboard.length)
         }
-        const questionSum = quizList.reduce(
-          (sum, quiz) => sum + (quiz.questionCount ?? 0),
-          0,
-        )
-        setTotalQuizzes(quizList.length)
-        setTotalQuestions(questionSum)
-        setTotalGamesPlayed(leaderboard.length)
       } catch (err) {
         if (!cancelled) {
           const message =
-            err instanceof ApiError ? err.message : 'Could not load home statistics.'
-          setError(message)
-          setTotalQuizzes(0)
-          setTotalQuestions(0)
+            err instanceof ApiError
+              ? err.message
+              : 'Could not load leaderboard count from the server.'
+          setLeaderboardError(message)
           setTotalGamesPlayed(0)
         }
       } finally {
         if (!cancelled) {
-          setLoading(false)
+          setLeaderboardLoading(false)
         }
       }
     }
 
-    void load()
+    void loadLeaderboard()
     return () => {
       cancelled = true
     }
   }, [])
+
+  const loading = quizzesLoading || leaderboardLoading
 
   return (
     <section>
@@ -66,9 +69,9 @@ export function HomePage() {
         </p>
       </div>
 
-      {error && (
-        <div className="alert alert-warning" role="status">
-          {error}
+      {leaderboardError && (
+        <div className="alert alert-secondary" role="status">
+          {leaderboardError}
         </div>
       )}
 

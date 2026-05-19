@@ -1,33 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ApiError, fetchGlobalLeaderboard, fetchQuizzes, type QuizListItem } from '../api'
+import { ApiError, fetchGlobalLeaderboard } from '../api'
+import { useAppData } from '../context/AppDataContext'
 import type { GameResult } from '../types'
 
 type LeaderboardSort = 'score' | 'date' | 'player'
 
 /**
- * Global leaderboard page. Shows the top 20 game results across all quizzes,
- * sortable by score, date, or player name. Data is loaded from the API on mount.
+ * Global leaderboard page. Quiz titles come from {@link useAppData}; result rows are
+ * loaded from the API in {@code useEffect}.
  */
 export function LeaderboardPage() {
   const [sortBy, setSortBy] = useState<LeaderboardSort>('score')
-  const [quizzes, setQuizzes] = useState<QuizListItem[]>([])
+  const { quizzes, loading: quizzesLoading } = useAppData()
   const [gameResults, setGameResults] = useState<GameResult[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true)
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
-      setLoading(true)
-      setError(null)
+      setLeaderboardLoading(true)
+      setLeaderboardError(null)
       try {
-        const [quizList, results] = await Promise.all([
-          fetchQuizzes(),
-          fetchGlobalLeaderboard(),
-        ])
+        const results = await fetchGlobalLeaderboard()
         if (!cancelled) {
-          setQuizzes(quizList)
           setGameResults(results)
         }
       } catch (err) {
@@ -36,13 +33,12 @@ export function LeaderboardPage() {
             err instanceof ApiError
               ? err.message
               : 'Could not load leaderboard data from the server.'
-          setError(message)
-          setQuizzes([])
+          setLeaderboardError(message)
           setGameResults([])
         }
       } finally {
         if (!cancelled) {
-          setLoading(false)
+          setLeaderboardLoading(false)
         }
       }
     }
@@ -80,6 +76,8 @@ export function LeaderboardPage() {
     return copy.slice(0, 20)
   }, [gameResults, sortBy])
 
+  const loading = quizzesLoading || leaderboardLoading
+
   return (
     <section>
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
@@ -105,9 +103,9 @@ export function LeaderboardPage() {
         </div>
       </div>
 
-      {error && (
+      {leaderboardError && (
         <div className="alert alert-warning mb-3" role="status">
-          {error}
+          {leaderboardError}
         </div>
       )}
 

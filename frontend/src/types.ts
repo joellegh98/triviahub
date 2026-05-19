@@ -36,3 +36,13 @@ export interface ResultsLocationState {
   durationSec: number
   hintsUsed: number
 }
+
+/** Navigation state when redirecting to the quiz browser (e.g. deleted quiz). */
+export interface QuizzesLocationState {
+  toastMessage?: string
+}
+
+/** Navigation state when opening play from the quiz browser. */
+export interface PlayLocationState {
+  fromQuizBrowser?: boolean
+}

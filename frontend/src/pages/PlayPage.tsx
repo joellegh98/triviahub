@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, fetchQuiz, fetchRandomQuestionsForQuiz, type QuizListItem } from '../api'
+import { useAppData } from '../context/AppDataContext'
+import type { PlayLocationState, QuizzesLocationState } from '../types'
 import type { Question } from '../types'
 
 /**
@@ -11,7 +13,9 @@ import type { Question } from '../types'
  */
 export function PlayPage() {
   const { quizId } = useParams()
+  const location = useLocation()
   const navigate = useNavigate()
+  const { refreshQuizzes } = useAppData()
   const [quiz, setQuiz] = useState<QuizListItem | null>(null)
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -75,6 +79,17 @@ export function PlayPage() {
         }
       } catch (err) {
         if (!cancelled) {
+          if (err instanceof ApiError && err.status === 404) {
+            refreshQuizzes()
+            const playState = location.state as PlayLocationState | null
+            const toastState: QuizzesLocationState = {
+              toastMessage: playState?.fromQuizBrowser
+                ? 'This quiz was deleted and is no longer available.'
+                : 'This quiz is not available.',
+            }
+            navigate('/quizzes', { replace: true, state: toastState })
+            return
+          }
           const message =
             err instanceof ApiError ? err.message : 'Could not load this quiz from the server.'
           setLoadError(message)
@@ -94,7 +109,7 @@ export function PlayPage() {
         window.clearTimeout(redirectTimer)
       }
     }
-  }, [quizId, navigate])
+  }, [quizId, location.state, navigate, refreshQuizzes])
 
   useEffect(() => {
     if (quizQuestions.length === 0 || noQuestionsWarning) {
