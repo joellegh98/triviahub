@@ -26,6 +26,7 @@ const emptyQuestionForm = {
   options: ['', '', '', ''] as [string, string, string, string],
   correctIndex: 0,
   hint: '',
+  difficulty: 'medium' as 'easy' | 'medium' | 'hard',
 }
 
 type QuizFormErrors = Partial<Record<'title' | 'category', string>>
@@ -319,6 +320,7 @@ export function AdminPage() {
       options: [...questionForm.options.map((option) => option.trim())],
       correctIndex: questionForm.correctIndex,
       hint: questionForm.hint.trim() || 'No hint provided.',
+      difficulty: questionForm.difficulty,
     }
 
     try {
@@ -364,6 +366,7 @@ export function AdminPage() {
       options: [...question.options],
       correctIndex: question.correctIndex,
       hint: question.hint,
+      difficulty: question.difficulty,
     })
     setQuestionErrors({})
     scrollToQuestionForm()
@@ -684,7 +687,28 @@ export function AdminPage() {
                     )}
                   </div>
 
-                  <div className="col-12 col-md-8">
+                  <div className="col-12 col-md-4">
+                    <label htmlFor="questionDifficulty" className="form-label">
+                      Difficulty
+                    </label>
+                    <select
+                      id="questionDifficulty"
+                      className="form-select"
+                      value={questionForm.difficulty}
+                      onChange={(event) =>
+                        setQuestionForm((prev) => ({
+                          ...prev,
+                          difficulty: event.target.value as 'easy' | 'medium' | 'hard',
+                        }))
+                      }
+                    >
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                  </div>
+
+                  <div className="col-12 col-md-4">
                     <label htmlFor="questionHint" className="form-label">
                       Hint (optional)
                     </label>
@@ -731,7 +755,7 @@ export function AdminPage() {
                         <div className="text-start">
                           <p className="fw-semibold mb-1">{question.text}</p>
                           <p className="mb-1 text-muted">
-                            Correct: Option {question.correctIndex + 1}
+                            Correct: Option {question.correctIndex + 1} &bull; {question.difficulty}
                           </p>
                           <p className="mb-0 small text-muted">Hint: {question.hint}</p>
                         </div>

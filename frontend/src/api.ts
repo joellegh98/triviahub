@@ -191,6 +191,7 @@ export async function createQuestion(
     options: string[]
     correctIndex: number
     hint: string
+    difficulty: string
   },
 ): Promise<Question> {
   return requestJson<Question>(
@@ -213,6 +214,7 @@ export async function updateQuestion(
     options: string[]
     correctIndex: number
     hint: string
+    difficulty: string
   },
 ): Promise<Question> {
   return requestJson<Question>(`/questions/${encodeURIComponent(questionId)}`, {

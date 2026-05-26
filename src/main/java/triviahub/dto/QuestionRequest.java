@@ -11,6 +11,8 @@ public class QuestionRequest {
     private List<String> options;
     private int correctIndex;
     private String hint;
+    /** Difficulty level: {@code "easy"}, {@code "medium"}, or {@code "hard"}. */
+    private String difficulty;
 
     public String getText() {
         return text;
@@ -42,5 +44,13 @@ public class QuestionRequest {
 
     public void setHint(String hint) {
         this.hint = hint;
+    }
+
+    public String getDifficulty() {
+        return difficulty;
+    }
+
+    public void setDifficulty(String difficulty) {
+        this.difficulty = difficulty;
     }
 }

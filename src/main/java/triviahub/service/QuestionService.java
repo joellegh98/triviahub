@@ -83,7 +83,8 @@ public class QuestionService {
                 request.getText().trim(),
                 options,
                 request.getCorrectIndex(),
-                request.getHint() != null ? request.getHint().trim() : ""
+                request.getHint() != null ? request.getHint().trim() : "",
+                request.getDifficulty().trim().toLowerCase()
         );
 
         updateAll(questions -> {
@@ -109,7 +110,8 @@ public class QuestionService {
                 request.getText().trim(),
                 options,
                 request.getCorrectIndex(),
-                request.getHint() != null ? request.getHint().trim() : ""
+                request.getHint() != null ? request.getHint().trim() : "",
+                request.getDifficulty().trim().toLowerCase()
         );
 
         updateAll(questions -> {

@@ -316,7 +316,14 @@ export function PlayPage() {
 
       <article className="card shadow-sm">
         <div className="card-body">
-          <h2 className="h5 mb-3">{currentQuestion.text}</h2>
+          <h2 className="h5 mb-2">{currentQuestion.text}</h2>
+          <span className={`badge mb-3 ${
+            currentQuestion.difficulty === 'hard' ? 'bg-danger' :
+            currentQuestion.difficulty === 'medium' ? 'bg-warning text-dark' :
+            'bg-success'
+          }`}>
+            {currentQuestion.difficulty}
+          </span>
           <div className="d-grid gap-2 mb-3">
             {currentQuestion.options.map((option, index) => {
               let btnClass = 'btn btn-outline-primary text-start'

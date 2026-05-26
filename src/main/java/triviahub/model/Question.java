@@ -19,6 +19,7 @@ public class Question implements Serializable {
     private List<String> options = new ArrayList<>();
     private int correctIndex;
     private String hint;
+    private String difficulty;
 
     public Question() {
     }
@@ -29,7 +30,8 @@ public class Question implements Serializable {
             String text,
             List<String> options,
             int correctIndex,
-            String hint
+            String hint,
+            String difficulty
     ) {
         this.id = id;
         this.quizId = quizId;
@@ -37,6 +39,7 @@ public class Question implements Serializable {
         this.options = options != null ? new ArrayList<>(options) : new ArrayList<>();
         this.correctIndex = correctIndex;
         this.hint = hint;
+        this.difficulty = difficulty;
     }
 
     public String getId() {
@@ -85,5 +88,14 @@ public class Question implements Serializable {
 
     public void setHint(String hint) {
         this.hint = hint;
+    }
+
+    /** Returns the difficulty level; defaults to {@code "medium"} for legacy data. */
+    public String getDifficulty() {
+        return difficulty != null ? difficulty : "medium";
+    }
+
+    public void setDifficulty(String difficulty) {
+        this.difficulty = difficulty;
     }
 }

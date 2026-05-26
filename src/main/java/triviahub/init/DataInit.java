@@ -74,7 +74,8 @@ public final class DataInit {
                 "Which keyword declares a block-scoped variable?",
                 List.of("var", "let", "const", "both let and const"),
                 3,
-                "Think about ES6 declarations."
+                "Think about ES6 declarations.",
+                "easy"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -87,7 +88,8 @@ public final class DataInit {
                         "A single value"
                 ),
                 1,
-                "It keeps the same length as original."
+                "It keeps the same length as original.",
+                "medium"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -95,7 +97,8 @@ public final class DataInit {
                 "Which value is strictly equal to itself?",
                 List.of("NaN", "undefined", "null", "0"),
                 3,
-                "NaN is a famous exception."
+                "NaN is a famous exception.",
+                "hard"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -103,7 +106,8 @@ public final class DataInit {
                 "What is the output type of JSON.parse?",
                 List.of("string", "number", "javascript value/object", "boolean only"),
                 2,
-                "It recreates native structures from JSON."
+                "It recreates native structures from JSON.",
+                "medium"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -111,7 +115,8 @@ public final class DataInit {
                 "Which method adds an item to the end of an array?",
                 List.of("shift", "push", "unshift", "concat"),
                 1,
-                "Its opposite is pop."
+                "Its opposite is pop.",
+                "easy"
         ));
 
         questions.add(new Question(
@@ -120,7 +125,8 @@ public final class DataInit {
                 "What is the capital city of Canada?",
                 List.of("Toronto", "Vancouver", "Ottawa", "Montreal"),
                 2,
-                "It is in Ontario but not Toronto."
+                "It is in Ontario but not Toronto.",
+                "easy"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -128,7 +134,8 @@ public final class DataInit {
                 "Which desert is the largest hot desert in the world?",
                 List.of("Gobi", "Sahara", "Kalahari", "Arabian"),
                 1,
-                "It spans North Africa."
+                "It spans North Africa.",
+                "easy"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -136,7 +143,8 @@ public final class DataInit {
                 "The Andes mountain range is mainly on which continent?",
                 List.of("Asia", "Europe", "South America", "Africa"),
                 2,
-                "Think of Chile and Peru."
+                "Think of Chile and Peru.",
+                "medium"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -144,7 +152,8 @@ public final class DataInit {
                 "Which country has the largest land area?",
                 List.of("Canada", "China", "United States", "Russia"),
                 3,
-                "It stretches across Europe and Asia."
+                "It stretches across Europe and Asia.",
+                "medium"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -152,7 +161,8 @@ public final class DataInit {
                 "Which river flows through Egypt into the Mediterranean Sea?",
                 List.of("Amazon", "Nile", "Danube", "Volga"),
                 1,
-                "Often called the longest river in the world."
+                "Often called the longest river in the world.",
+                "easy"
         ));
 
         questions.add(new Question(
@@ -161,7 +171,8 @@ public final class DataInit {
                 "What is the chemical symbol for gold?",
                 List.of("Gd", "Ag", "Au", "Go"),
                 2,
-                "It comes from the Latin word aurum."
+                "It comes from the Latin word aurum.",
+                "easy"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -169,7 +180,8 @@ public final class DataInit {
                 "Which planet is known as the Red Planet?",
                 List.of("Venus", "Mars", "Jupiter", "Mercury"),
                 1,
-                "Its color comes from iron oxide."
+                "Its color comes from iron oxide.",
+                "easy"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -177,7 +189,8 @@ public final class DataInit {
                 "What is the process by which plants make food?",
                 List.of("Respiration", "Digestion", "Photosynthesis", "Fermentation"),
                 2,
-                "It needs sunlight, water, and carbon dioxide."
+                "It needs sunlight, water, and carbon dioxide.",
+                "medium"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -185,7 +198,8 @@ public final class DataInit {
                 "What force keeps planets in orbit around the sun?",
                 List.of("Magnetism", "Friction", "Electricity", "Gravity"),
                 3,
-                "It is proportional to mass."
+                "It is proportional to mass.",
+                "medium"
         ));
         questions.add(new Question(
                 UUID.randomUUID().toString(),
@@ -193,7 +207,8 @@ public final class DataInit {
                 "Which gas do humans mainly inhale for survival?",
                 List.of("Nitrogen", "Carbon dioxide", "Oxygen", "Hydrogen"),
                 2,
-                "It is about 21% of Earth atmosphere."
+                "It is about 21% of Earth atmosphere.",
+                "hard"
         ));
 
         return questions;

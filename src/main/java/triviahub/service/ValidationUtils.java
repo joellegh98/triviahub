@@ -100,6 +100,13 @@ public final class ValidationUtils {
             errors.put("correctIndex", "Correct index must be between 0 and 3.");
         }
 
+        String difficulty = request.getDifficulty() != null ? request.getDifficulty().trim().toLowerCase() : "";
+        if (difficulty.isEmpty()) {
+            errors.put("difficulty", "Difficulty is required (easy, medium, or hard).");
+        } else if (!difficulty.equals("easy") && !difficulty.equals("medium") && !difficulty.equals("hard")) {
+            errors.put("difficulty", "Difficulty must be 'easy', 'medium', or 'hard'.");
+        }
+
         if (!errors.isEmpty()) {
             throw new ValidationException("Validation failed.", errors);
         }

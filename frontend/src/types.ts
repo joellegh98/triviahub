@@ -14,6 +14,7 @@ export interface Question {
   options: [string, string, string, string]
   correctIndex: number
   hint: string
+  difficulty: 'easy' | 'medium' | 'hard'
 }
 
 export interface GameResult {
