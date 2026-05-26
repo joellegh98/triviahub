@@ -423,7 +423,7 @@ export function AdminPage() {
 
   return (
     <section>
-      <h1 className="h2 mb-4">Admin — API CRUD</h1>
+      <h1 className="h2 mb-4">Admin</h1>
 
       {submitError && (
         <div className="alert alert-warning mb-3" role="status">

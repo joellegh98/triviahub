@@ -24,19 +24,11 @@ The app includes seven routes: Home, Quiz Browser, Play, Results, Global Leaderb
 
 ## How to run the exercise
 
-### Phase 1
-
-1. IntelliJ run config
+1. mvn spring-boot:run or IntelliJ run config
 2. Open a terminal in `frontend/`.
 3. Install dependencies: `npm install`
 4. Start the dev server: `npm run dev`
 5. Open the URL shown in the terminal (Vite default is `http://localhost:5173`).
-
-### Phase 2 (API-backed UI)
-
-1. From the repo root, run **DataInit** once so `quizzes.ser`, `questions.ser`, and `results.ser` exist (same working directory you use for the backend).
-2. Start the Spring Boot app on port **8080** (`TriviaHubApplication`).
-3. In `frontend/`, run `npm run dev`. The Vite dev server proxies `/api` to the backend (`frontend/vite.config.ts`).
 
 ---
 
@@ -73,11 +65,3 @@ Otherwise:
 Implementation reference: `computeScore` in `frontend/src/utils/computeScore.ts`.
 
 ---
-
-
----
-
-## Limitations
-
-- Global “games on leaderboard” on the home page counts entries returned by `GET /api/leaderboard` (up to 20), not every saved game in storage.
-- `POST /results` (save after a run) is wired in P2-7; the results page still merges the current session into the displayed top-10 for preview.

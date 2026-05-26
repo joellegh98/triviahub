@@ -54,7 +54,7 @@ class ObjectStreamFileStoreTest {
             executor.submit(() -> {
                 try {
                     start.await();
-                    store.updateList(PersistencePaths.QUIZZES_FILE, current -> {
+                    store.updateList(PersistencePaths.QUIZZES_FILE, (List<Quiz> current) -> {
                         List<Quiz> updated = new ArrayList<>(current);
                         updated.add(new Quiz("id-" + index, "Quiz " + index, "cat", "d"));
                         return updated;

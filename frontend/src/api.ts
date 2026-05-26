@@ -21,16 +21,32 @@ export type QuizListItem = Quiz & { questionCount: number }
 
 type ErrorBody = { message?: string; errors?: Record<string, string> }
 
-async function parseJson(res: Response): Promise<unknown> {
+function isJsonContentType(res: Response): boolean {
+  const contentType = res.headers.get('content-type')?.toLowerCase() ?? ''
+  return contentType.includes('application/json') || contentType.includes('+json')
+}
+
+async function parseJsonBody(res: Response): Promise<unknown> {
   const text = await res.text()
   if (!text) {
     return null
   }
-  try {
-    return JSON.parse(text) as unknown
-  } catch {
-    return text
+  return JSON.parse(text) as unknown
+}
+
+async function parseErrorBody(res: Response): Promise<unknown> {
+  const text = await res.text().catch(() => '')
+  if (!text) {
+    return null
   }
+  if (isJsonContentType(res)) {
+    try {
+      return JSON.parse(text) as unknown
+    } catch {
+      return text
+    }
+  }
+  return text
 }
 
 function getErrorMessage(status: number, body: unknown): string {
@@ -45,6 +61,8 @@ function getErrorMessage(status: number, body: unknown): string {
 
 /**
  * Performs a JSON request and returns parsed JSON on success.
+ * Throws ApiError if the response is not OK or the success body is not JSON
+ * (e.g. an HTML fallback page from a proxy / dev server).
  */
 async function requestJson<T>(
   path: string,
@@ -60,7 +78,7 @@ async function requestJson<T>(
   })
 
   if (!res.ok) {
-    const errBody = await parseJson(res)
+    const errBody = await parseErrorBody(res)
     throw new ApiError(getErrorMessage(res.status, errBody), res.status, errBody)
   }
 
@@ -68,8 +86,25 @@ async function requestJson<T>(
     return undefined as T
   }
 
-  const body = await parseJson(res)
-  return body as T
+  if (!isJsonContentType(res)) {
+    const previewText = await res.text().catch(() => '')
+    const contentType = res.headers.get('content-type') ?? 'unknown'
+    throw new ApiError(
+      `Expected JSON response from ${path} but received '${contentType}'.`,
+      res.status,
+      previewText,
+    )
+  }
+
+  try {
+    return (await parseJsonBody(res)) as T
+  } catch {
+    throw new ApiError(
+      `Server returned malformed JSON for ${path}.`,
+      res.status,
+      null,
+    )
+  }
 }
 
 /**
