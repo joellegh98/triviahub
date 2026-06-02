@@ -24,12 +24,36 @@ The app includes seven routes: Home, Quiz Browser, Play, Results, Global Leaderb
 
 ## How to run the exercise
 
-1. mvn -q exec:java "-Dexec.mainClass=triviahub.init.DataInit"
-2. mvn spring-boot:run or IntelliJ run config
-3. Open a terminal in `frontend/`.
-4. Install dependencies: `npm install`
-5. Start the dev server: `npm run dev`
-6. Open the URL shown in the terminal (Vite default is `http://localhost:5173`).
+### Backend
+
+```sh
+mvn -q exec:java -Dexec.mainClass=triviahub.init.DataInit
+```
+
+```sh
+mvn spring-boot:run
+```
+
+Or start the backend using the IntelliJ Run Configuration.
+
+### Frontend
+
+Open a terminal in the `\frontend` directory and run:
+
+```bash
+npm install
+```
+```bash
+npm run dev
+```
+
+### Access the Application
+
+Open the URL shown in the terminal (Vite default):
+
+```text
+http://localhost:5173
+```
 
 ---
 

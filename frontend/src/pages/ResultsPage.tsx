@@ -8,7 +8,7 @@ import type { GameResult, Quiz, ResultsLocationState } from '../types'
 // In React Strict Mode (dev), effects run twice. The second run skips the save
 // (sessionStorage guard) but must wait for the first run's save to finish before
 // fetching the leaderboard, or the result won't appear yet.
-let activeSavePromise: Promise<void> | null = null
+let activeSavePromise: Promise<string | null> | null = null
 
 /**
  * Post-game results page. Saves the run to the backend on mount, then loads the
@@ -108,8 +108,8 @@ export function ResultsPage() {
       if (!skipSave) {
         sessionStorage.setItem('savedRunKey', saveKey)
         setSaveError(null)
-        let resolveSave!: () => void
-        activeSavePromise = new Promise<void>((r) => { resolveSave = r })
+        let resolveSave!: (err: string | null) => void
+        activeSavePromise = new Promise<string | null>((r) => { resolveSave = r })
         try {
           await saveGameResult({
             quizId: resolvedQuizId,
@@ -121,17 +121,22 @@ export function ResultsPage() {
             hintsUsed: run.hintsUsed,
             playedAt,
           })
+          resolveSave(null)
         } catch {
           sessionStorage.removeItem('savedRunKey')
+          const saveMsg = 'Your result could not be saved.'
+          resolveSave(saveMsg)
           if (!cancelled) {
-            setSaveError('Your result could not be saved.')
+            setSaveError(saveMsg)
           }
         } finally {
-          resolveSave()
           activeSavePromise = null
         }
       } else if (activeSavePromise) {
-        await activeSavePromise
+        const saveErr = await activeSavePromise
+        if (!cancelled && saveErr) {
+          setSaveError(saveErr)
+        }
       }
 
       try {
