@@ -16,7 +16,7 @@
 
 ## Project overview
 
-TriviaHub is a single-page quiz application built with React (TypeScript) in `frontend/` and a Spring Boot backend in the repository root. The UI loads quizzes, questions, and leaderboard data from the REST API (`frontend/src/api.ts`, proxied to `http://localhost:8080`). The file `frontend/src/mockData.js` is kept as reference seed content only and is no longer imported by the app.
+TriviaHub is a single-page quiz application built with React (TypeScript) in `frontend/` and a Spring Boot backend in the repository root. The UI loads quizzes, questions, and leaderboard data from the REST API (`frontend/src/api.ts`, proxied to `http://localhost:8080`).
 
 The app includes seven routes: Home, Quiz Browser, Play, Results, Global Leaderboard, Admin CRUD, and About.
 
