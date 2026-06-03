@@ -25,13 +25,16 @@ The app includes seven routes: Home, Quiz Browser, Play, Results, Global Leaderb
 ## How to run the exercise
 
 ### Backend
-
 ```sh
-mvn -q exec:java -Dexec.mainClass=triviahub.init.DataInit
+mvnw clean package
 ```
 
 ```sh
-mvn spring-boot:run
+mvn -q exec:java "-Dexec.mainClass=triviahub.init.DataInit"
+```
+
+```sh
+mvnw spring-boot:run
 ```
 
 Or start the backend using the IntelliJ Run Configuration.
